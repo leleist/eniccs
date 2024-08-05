@@ -3,6 +3,9 @@ import glob
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.ndimage import binary_dilation, binary_opening, binary_closing, binary_erosion
+
+
 
 mask_RegEx = {"Classes" : "/*_CLASSES.TIF", # water, land, backround
               "Cloud" : "/*_CLOUD.TIF",
@@ -11,6 +14,7 @@ mask_RegEx = {"Classes" : "/*_CLASSES.TIF", # water, land, backround
               "Cloud_shadow" : "/*CLOUDSHADOW.TIF"
               #"Snow" : "/*SNOW.TIF",
               }
+
 class mask:
     def __init__(self, dir_path, mask_RegEx=None):
         if mask_RegEx is None:
@@ -24,7 +28,9 @@ class mask:
         self.mask_data = [] # Placeholder for loaded mask data
         self.multiclass_mask = None
 
-
+        # load all masks and combine them into a multiclass mask upon initialization
+        self.load_masks()
+        # self.combine_masks() # not usefull here because individual masks will be updated in main!
 
     # function to load and collect all masks into a list
     def load_masks(self):
@@ -96,29 +102,45 @@ class mask:
             print(i)
             # Set mask values to the current class value (i)
             self.multiclass_mask[mask != 0] = i
-        # return self
 
-    def save_mask_to_geotiff(self):
-        # get datatake_ID and tile_ID
-        base_name = self.datatake_name
-        parts = base_name.split("-")  # split into parts
+        # overwrite cloudshadow with water mask to address CS-Water confusion in original data for training
+        self.multiclass_mask = np.where(self.mask_data[2] == 2, 2, self.multiclass_mask)
 
-        datatake = parts[2][13:29]  # after EnMAP folder naming convention
-        tileno = parts[2][30:33]  # after EnMAP folder naming convention
+    # buffer water mask to exclude coastal areas due to high missclassification rate in original data
+    def buffer_water_mask(self, buffer_size=3):
+        water_mask = self.mask_data[2]
+        buffered_water_mask_outwards = binary_dilation(water_mask, iterations=buffer_size)
+        buffered_water_mask_inwards = binary_erosion(water_mask, iterations=buffer_size-1)
 
-        transform = self.metadata['transform']
-        output_path = self.dir_path + "/" + datatake + "_" + tileno + "_refined_mask.tif"
-        with rasterio.open(output_path, 'w', driver='GTiff', height=mask.shape[1],
-                           width=mask.shape[2], count=1, dtype=str(mask.dtype), crs='EPSG:4326',
-                           transform=transform) as dst:
-            dst.write(mask)
+        # extract pixels extended through buffering
+        extended_water_mask_outwards = buffered_water_mask_outwards - water_mask
+        extended_water_mask_inwards = water_mask - buffered_water_mask_inwards
+
+        #update the multiclass mask (attention, this change is not applied to the mask data list)
+        self.multiclass_mask = np.where(extended_water_mask_outwards == 1, 0, self.multiclass_mask)
+        self.multiclass_mask = np.where(extended_water_mask_inwards == 1, 0, self.multiclass_mask)
 
 
-    def save_mask_to_geotiff_p(self):
-        output_path = self.dir_path + "/" + self.datatake_name + "_REFINED_QA_Mask.tif"
+
+
+
+    # default: saves multiclass raster to geotiff, can save any intermediate/derivetive mask as well if specified
+    def save_mask_to_geotiff(self, alternative_raster=None, alternative_filename=None):
+        if alternative_filename is not None:
+            output_path = self.dir_path + "/" + alternative_filename + ".tif"
+        else:
+
+            output_path = self.dir_path + "/" + self.datatake_name + "_REFINED_QA_Mask.tif"
+
+        if alternative_raster is not None:
+            raster_to_save = alternative_raster
+
+        else:
+            raster_to_save = self.multiclass_mask
+
         with rasterio.open(output_path, 'w', driver=self.profile['driver'], height=self.multiclass_mask.shape[1],
                            width=self.multiclass_mask.shape[2], count=1, dtype=str(self.profile['dtype']), crs=self.profile['crs'],
                            transform=self.profile['transform']) as dst:
-            dst.write(self.multiclass_mask)
+            dst.write(raster_to_save)
 
 
