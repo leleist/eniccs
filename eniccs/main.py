@@ -1,15 +1,9 @@
 #test
-
-
-
-
-
-
-
+from scipy.ndimage import binary_erosion
 
 
 # find undetected clouds and update cloud mask
-def find_cloud_over_land(spectral_image_obj, mask_obj):
+def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -17,6 +11,10 @@ def find_cloud_over_land(spectral_image_obj, mask_obj):
     no_data = spectral_image_obj.no_data_value
     masklist = mask_obj.mask_data
 
+    # plt.imshow(masklist[3][0, :, :], cmap='gray')
+    # plt.title('CI')
+    # plt.colorbar()
+    # plt.show()
 
     no_data_condition = spectral_image[0, :, :] == no_data
 
@@ -53,13 +51,6 @@ def find_cloud_over_land(spectral_image_obj, mask_obj):
     # calculate universal CloudIndex (CI) after Zhai et al. 2018, ISPRS
     CI = (band_75 + 2 * band_153) / (band_6 + band_28 + band_47)
 
-    # print CI
-    plt.imshow(CI, cmap='gray')
-    plt.title('CI')
-    plt.colorbar()
-    plt.show()
-
-
     # apply threshold to CI
     CI_threshold = 1  # small value from (0.01, 0.1, 1, 10, 100) as in Zhai et al. 2018
     CI_binary = np.zeros(spectral_image.shape[1:])
@@ -67,23 +58,27 @@ def find_cloud_over_land(spectral_image_obj, mask_obj):
 
     # Cloud_over_Land_Test
     CLT_mask = np.zeros(spectral_image.shape[1:])
-    CLT_mask[(band_6 >= 0.15) & (band_75 >= 0.25) & (CI >= 0.95) & (CI <= 2)] = 1
+    CLT_mask[(band_6 >= 0.15) & (band_75 >= 0.25) & (CI >= CI_threshold) & (CI <= 2)] = 1
 
     # update cloud mask in masklist
     masklist[3] = np.where(CLT_mask == 1, 1, masklist[3])
 
     # print CI
-    plt.imshow(CLT_mask, cmap='gray')
-    plt.title('CI')
-    plt.colorbar()
-    plt.show()
+    # plt.imshow(CLT_mask, cmap='gray')
+    # plt.title('CI')
+    # plt.colorbar()
+    # plt.show()
+#
+    # plt.imshow(masklist[3][0, :, :], cmap='gray')
+    # plt.title('CI')
+    # plt.colorbar()
+    # plt.show()
 
     mask_obj.maskdata = masklist
 
-    return mask_obj
 
 
-def find_cloud_shadow(spectral_image_obj, mask_obj):
+def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -97,26 +92,37 @@ def find_cloud_shadow(spectral_image_obj, mask_obj):
     band_108 = spectral_image[107, :, :]  # 1070 nm, NIR
     band_45 = spectral_image[44, :, :]  # 641 nm, Red
     band_3 = spectral_image[2, :, :]  # 641 nm, Blue
+    band_29 = spectral_image[28, :, :]  # 550 nm, Green
 
     band_108 = band_108 * 0.0001
     band_45  = band_45  * 0.0001
     band_3 = band_3 * 0.0001
+    band_29 = band_29 * 0.0001
 
     band_108[no_data_condition] = np.nan
     band_45[no_data_condition] = np.nan
     band_3[no_data_condition] = np.nan
+    band_29[no_data_condition] = np.nan
 
     band_108[band_108 > 1] = 1
     band_45[band_45 > 1] = 1
     band_3[band_3 > 1] = 1
+    band_29[band_29 > 1] = 1
 
     band_108[band_108 < 0] = 0
     band_45[band_45 < 0] = 0
     band_3[band_3 < 0] = 0
+    band_29[band_29 < 0] = 0
 
 
     # calculate difference index
     DI = band_108 - band_45 + band_108
+
+    # plot DI
+    plt.imshow(DI)
+    plt.colorbar()
+    plt.show()
+
 
     # create a binary mask of DI where values between 0.015 and 0.03 are set to 1
     DI_binary = np.zeros(spectral_image.shape[1:])
@@ -127,7 +133,22 @@ def find_cloud_shadow(spectral_image_obj, mask_obj):
     extended_cloudshadow = np.where(DI_binary == 1, 1, original_cloudshadow)
 
     # remove water pixels mistakenly classified as cloud shadow
-    mask_obj.apply_binary_opening(mask_index=2, structure_size=2)
+    # mask_obj.apply_binary_opening(mask_index=2, structure_size=2)
+    # extended_cloudshadow = binary_erosion(extended_cloudshadow, iterations=1)
+
+    water_land_binary_mask = (band_45 > 0.8*band_29).astype(int) # exploits logic of green hump in veg. spectrum
+    extended_cloudshadow = np.where(water_land_binary_mask == 1, 0, extended_cloudshadow)
+
+
+    # plot water_land_binary_mask
+    plt.imshow(water_land_binary_mask)
+    plt.colorbar()
+    plt.show()
+
+    plt.imshow(extended_cloudshadow[0, :, :])
+    plt.colorbar()
+    plt.show()
+
 
     # update cloud mask in masklist
     masklist[6] = extended_cloudshadow
