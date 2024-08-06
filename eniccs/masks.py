@@ -97,14 +97,24 @@ class mask:
         print(len(self.mask_data))
         self.multiclass_mask = np.zeros(self.mask_data[0].shape)  # Initialize the multiclass mask
         for i, mask in enumerate(self.mask_data): # start=1
-            #print(f'Class {i} has value:, {i} ')
-            print(mask.shape)
-            print(i)
             # Set mask values to the current class value (i)
             self.multiclass_mask[mask != 0] = i
 
         # overwrite cloudshadow with water mask to address CS-Water confusion in original data for training
         self.multiclass_mask = np.where(self.mask_data[2] == 2, 2, self.multiclass_mask)
+
+# apply binary opening (for removing flase positives from water mask)
+    def apply_binary_opening(self, mask_index, structure_size=3):
+        input_mask = self.mask_data[mask_index]
+        input_mask = input_mask.squeeze()
+        structure = np.ones((structure_size, structure_size))
+        output_mask = binary_opening(input_mask, structure=structure)
+
+        # add arbitrary third dim to make shape fit
+        output_mask = np.expand_dims(output_mask, axis=0)
+
+        # update mask data
+        self.mask_data[mask_index] = output_mask.astype(np.uint8)
 
     # buffer water mask to exclude coastal areas due to high missclassification rate in original data
     def buffer_water_mask(self, buffer_size=3):
