@@ -20,27 +20,17 @@ def reshape_image_to_table(image):
     # Reshaping the hyperspectral image for analysis
     ns, nr, nc = image.shape
     hyperspectral_2D = image.reshape((ns, nr * nc)).T.copy()  # Transpose to (pixels, bands)
+
     return hyperspectral_2D
 
 def get_pixellabels(mask, hyperspectral_2D):
     labels = mask.flatten()  # Flatten the mask to match the hyperspectral image shape
     labeled_pixels = hyperspectral_2D[labels >= 0, :]  # Select pixels with labels
     labels = labels[labels >= 0]  # Keep corresponding labels
-    return labeled_pixels, labels
-
-def configure_classes(labeled_pixels, labels):
-    # change labels of 1,2, 4and 5 to 1
-    labels[labels == 1] = 1
-    labels[labels == 2] = 1
-    labels[labels == 4] = 1
-    labels[labels == 5] = 1
-
-    labels[labels == 3] = 2
-    labels[labels == 6] = 3
 
     return labeled_pixels, labels
 
-def outlier_removal(labeled_pixels, labels, n_neighbors=5, contamination="auto"):
+def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
     from sklearn.neighbors import LocalOutlierFactor
 
     non_outlier_labeled_pixels = None
@@ -50,7 +40,6 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=5, contamination="auto")
     print(np.unique(labels, return_counts=True))
 
     for i in [2, 3]:
-        print(i)
         class_samples = labeled_pixels[labels == i, :]
         lof = LocalOutlierFactor(n_neighbors=n_neighbors, contamination=contamination)
         outliers = lof.fit_predict(class_samples)
@@ -66,7 +55,6 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=5, contamination="auto")
 
     # add classes that were not assessed for outliers back to the data (class 0 and 1)
     for i in [0, 1]:
-        print(i)
         class_samples = labeled_pixels[labels == i, :]
         class_labels = np.ones(class_samples.shape[0], dtype=int) * i
         if non_outlier_labeled_pixels is None:
@@ -79,13 +67,12 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=5, contamination="auto")
     return non_outlier_labeled_pixels, non_outlier_labels
 
 
-def balance_classes(labeled_pixels, labels, n=2500):
+def balance_classes(labeled_pixels, labels, n=3000):
     unique, counts = np.unique(labels, return_counts=True)
     min_class_size = counts.min()
     # print(f'Minimum class size: {min_class_size} samples')
 
     # if a class has < n samples remove this class, check every class
-    n
     for i, count in enumerate(counts):
         if count < n:
             labeled_pixels = labeled_pixels[labels != unique[i], :]
@@ -106,7 +93,6 @@ def balance_classes(labeled_pixels, labels, n=2500):
         random_indices = np.random.choice(class_samples.shape[0], min_class_size, replace=False)
         balanced_pixels[i * min_class_size:(i + 1) * min_class_size, :] = class_samples[random_indices, :]
         balanced_labels[i * min_class_size:(i + 1) * min_class_size] = label
-
 
     return balanced_pixels, balanced_labels
 
@@ -168,8 +154,6 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plotboo
     # i.e.j% of the range of absolute difference (to equate for cases where overall change is very small)
     closest_index_range_value_range = np.where(absolude_diff < (value_range * 0.005) * saturation_point)[0][0]
 
-
-
     closest_index = np.argmin(np.abs(Y_data - saturation_point))
     closest_data_point = (x_data[closest_index], Y_data[closest_index])
 
@@ -205,8 +189,6 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plotboo
     return x_data[closest_index_range_value_range], Y_data[closest_index_range_value_range]
 
 def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1):
-
-
     n_components_list = list(range(2, max_components))
 
     # TODO: Check this, it is not used in the function
@@ -264,12 +246,7 @@ def get_VIP(pls_da_model):
     VIP_df = pd.DataFrame(VIP, columns=["VIP"])
     VIP_df["Band_ID"] = range(1, VIP.shape[0] + 1)
 
-    # subset all bands with VIP > 1
-    VIP_gr_1 = VIP_df[VIP_df["VIP"] > 1]
-
-    # order by VIP
-    VIP_gr_1 = VIP_gr_1.sort_values(by="VIP", ascending=False)
-    return VIP_df, VIP_gr_1
+    return VIP_df
 
 def validation_report(X_test, y_test, pls_da_model):
     # get validation report
@@ -288,30 +265,8 @@ def predict_on_image(hyperspectral_image, pls_da_model):
     predicted_mask_image = predicted_mask.reshape(hyperspectral_image[0].shape)
     return predicted_mask_image
 
-def morphological_mask_postprocessing(mask_data, buffer_size=2, structure_size=7):
-    # buffer the mask
-    mask_data_padded = binary_dilation(mask_data, iterations=buffer_size)
-
-    # Apply morphological closing to smooth borders
-    # (Closing = dilation, then erosion)
-    structure = np.ones((structure_size, structure_size))
-    closed_mask = binary_closing(mask_data_padded, structure=structure)
-    final_mask = binary_opening(closed_mask, structure=structure)
-    return final_mask
-
-# process clouds and cloud shadows with morphological operations
-def smooth_clouds_and_shadows(predicted_mask_image):
-    # loop over each class and apply morphological operations to classes 3 and 6
-    for class_value in [3, 5, 6]: # cloud and cloud shadow : 5,
-        mask = np.zeros(predicted_mask_image.shape, dtype=np.uint8)
-        mask[predicted_mask_image == class_value] = 1
-        processed_mask = morphological_mask_postprocessing(mask)
-        predicted_mask_image[processed_mask == 1] = class_value
-    return predicted_mask_image
-
 
 # wrapper
-
 def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
 
     # reshape image to table
@@ -319,9 +274,6 @@ def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
 
     # get pixel labels
     labeled_pixels, labels = get_pixellabels(mask_obj.multiclass_mask, hyperspectral_2D)
-
-    # reconfigure classes
-    labeled_pixels, labels = configure_classes(labeled_pixels, labels)
 
     # balance classes
     balanced_pixels, balanced_labels = balance_classes(labeled_pixels, labels)
@@ -336,12 +288,12 @@ def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
     f1_scores, optimal_n_components, pls_da = CV_optimize_n_components(X_train, y_train, max_components, cv=cv, njobs=njobs)
 
     # get VIP scores
-    VIP_df, VIP_gr_1 = get_VIP(pls_da)
+    VIP_df = get_VIP(pls_da)
 
     # get validation report
     validation_report(X_test, y_test, pls_da)
 
-    return pls_da, VIP_df, VIP_gr_1 # TODO: simplify, remove  VIP_gr_1, add plot option
+    return pls_da, VIP_df
 
 def pls_da_predict(model, X):
     continuous_outputs = model.predict(X)
@@ -357,3 +309,8 @@ def predict_on_image(hs_image_obj, pls_da_model):
     # reshape predicted mask to image shape
     predicted_mask_image = predicted_mask.reshape(hyperspectral_image[0].shape)
     return predicted_mask_image
+
+# build a vector with all function names of this file
+classification_functions = [reshape_image_to_table, get_pixellabels, outlier_removal, balance_classes, split_data,
+                            multiclass_plsda, pls_da_predict, f1_weighted_scorer, CV_optimize_n_components,
+                            get_VIP, validation_report, predict_on_image, train_PLSDA]

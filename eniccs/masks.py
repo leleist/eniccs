@@ -12,7 +12,6 @@ mask_RegEx = {"Classes" : "/*_CLASSES.TIF", # water, land, backround
               "Cirrus" : "/*CIRRUS.TIF",
               "Haze" : "/*HAZE.TIF",
               "Cloud_shadow" : "/*CLOUDSHADOW.TIF"
-              #"Snow" : "/*SNOW.TIF",
               }
 
 class mask:
@@ -27,10 +26,14 @@ class mask:
         self.datatake_name = None
         self.mask_data = [] # Placeholder for loaded mask data
         self.multiclass_mask = None
+        self.classification_mask = None
+        self.predicted_mask = None
+        self.new_cloud_mask = None
+        self.new_cloudshadow_mask = None
 
         # load all masks and combine them into a multiclass mask upon initialization
         self.load_masks()
-        # self.combine_masks() # not usefull here because individual masks will be updated in main!
+
 
     # function to load and collect all masks into a list
     def load_masks(self):
@@ -131,26 +134,53 @@ class mask:
         self.multiclass_mask = np.where(extended_water_mask_inwards == 1, 0, self.multiclass_mask)
 
 
+    def format_mask_for_classification(self):
+        formatted_mask = self.multiclass_mask
+        formatted_mask = np.where(formatted_mask == 1, 1, formatted_mask)
+        formatted_mask = np.where(formatted_mask == 2, 1, formatted_mask)
+        formatted_mask = np.where(formatted_mask == 3, 2, formatted_mask)
+        formatted_mask = np.where(formatted_mask == 4, 1, formatted_mask)
+        formatted_mask = np.where(formatted_mask == 5, 1, formatted_mask)
+        formatted_mask = np.where(formatted_mask == 6, 3, formatted_mask)
+
+        self.classification_mask = formatted_mask
 
 
+    def prediction_postprocessing(self, binary_mask, structure_size=4, buffer_size=2):
+        # TODO: make sure binray_mask is updated in self.___
+        print("binary_mask shape: ", binary_mask.shape)
+        binary_mask = np.squeeze(binary_mask)
+        print("binary_mask shape: ", binary_mask.shape)
+        # remove missclassification with water
+        binary_mask = np.where(self.mask_data[2] == 1, 0, binary_mask)
 
-    # default: saves multiclass raster to geotiff, can save any intermediate/derivetive mask as well if specified
-    def save_mask_to_geotiff(self, alternative_raster=None, alternative_filename=None):
-        if alternative_filename is not None:
-            output_path = self.dir_path + "/" + alternative_filename + ".tif"
+        # remove noise
+        binary_mask = binary_erosion(binary_mask, iterations=1)
+        print("binary_mask shape: ", binary_mask.shape)
+        mask_padded = binary_dilation(binary_mask, iterations=buffer_size)
+        structure = np.ones((1, structure_size, structure_size))
+        closed_mask = binary_closing(mask_padded, structure=structure)
+        final_mask = binary_opening(closed_mask, structure=structure)
+        print("done")
+        binary_mask = final_mask
+
+
+    def format_predicted_mask_to_binary(self):
+        self.new_cloudshadow_mask = np.where(self.predicted_mask == 3, 1, 0).astype(np.uint8)
+        self.new_cloud_mask = np.where(self.predicted_mask == 2, 1, 0).astype(np.uint8)
+
+
+    def save_mask_to_geotiff(self, raster=None, filename_prefix=None):
+        output_path = self.dir_path + "/" + filename_prefix + ".tif"
+        if len(raster.shape) != 2:
+            # remove arbitratry third dim
+            raster_to_save = np.squeeze(raster.copy())
         else:
+            raster_to_save = raster
 
-            output_path = self.dir_path + "/" + self.datatake_name + "_REFINED_QA_Mask.tif"
-
-        if alternative_raster is not None:
-            raster_to_save = alternative_raster
-
-        else:
-            raster_to_save = self.multiclass_mask
-
-        with rasterio.open(output_path, 'w', driver=self.profile['driver'], height=self.multiclass_mask.shape[1],
-                           width=self.multiclass_mask.shape[2], count=1, dtype=str(self.profile['dtype']), crs=self.profile['crs'],
+        with rasterio.open(output_path, 'w', driver=self.profile['driver'], height=self.mask_data[1].shape[1],
+                           width=self.mask_data[1].shape[2], count=1, dtype=str(self.profile['dtype']), crs=self.profile['crs'],
                            transform=self.profile['transform']) as dst:
-            dst.write(raster_to_save)
+            dst.write(raster_to_save, 1)
 
 
