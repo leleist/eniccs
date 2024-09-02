@@ -141,7 +141,7 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plotboo
     L, k, x0 = popt
     saturation_point = L
 
-    # Extracting the closest data point to the saturation point
+    ## Extracting the closest data point to the saturation point
     absolude_diff = np.abs(Y_data - saturation_point)
 
     # find the first index where the difference is less than j% of the saturation point
@@ -152,7 +152,17 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plotboo
 
     # find the first index where the difference is less than j% of the percent_range of the saturation point
     # i.e.j% of the range of absolute difference (to equate for cases where overall change is very small)
-    closest_index_range_value_range = np.where(absolude_diff < (value_range * 0.005) * saturation_point)[0][0]
+    threshold = (value_range * 0.005) * saturation_point
+
+    # Find indices where absolude_diff is less than the threshold
+    indices_below_threshold = np.where(absolude_diff < threshold)[0]
+
+    if indices_below_threshold.size > 0:
+        # If values are below the threshold, take the first one
+        closest_index_range_value_range = indices_below_threshold[0]
+    else:
+        # If no values are below the threshold, find the closest one
+        closest_index_range_value_range = np.argmin(np.abs(absolude_diff - threshold))
 
     closest_index = np.argmin(np.abs(Y_data - saturation_point))
     closest_data_point = (x_data[closest_index], Y_data[closest_index])
