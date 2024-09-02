@@ -71,18 +71,18 @@ class mask:
 
 
         # Cloud mask
-        cloudmask, template_shape = load_mask_or_placeholder(self.dir_path + mask_RegEx["Cloud"])
+        cloudmask, template_shape = load_mask_or_placeholder(self.dir_path + self.mask_RegEx["Cloud"])
         self.mask_data.append(cloudmask)
 
         # Cirrus mask
-        cirrusmask, _ = load_mask_or_placeholder(self.dir_path + mask_RegEx["Cirrus"], template_shape)
+        cirrusmask, _ = load_mask_or_placeholder(self.dir_path + self.mask_RegEx["Cirrus"], template_shape)
         cirrusmask[cirrusmask < 4] = 0  # remove thin cirrus classes
         cirrusmask[cirrusmask > 0] = 1  # merge cirrus clouds to form binary class
         self.mask_data.append(cirrusmask)
 
         # Other masks (Haze, Cloud_shadow, Snow) follow the same pattern
         for mask_type in ["Haze", "Cloud_shadow"]:  # , "Snow"
-            mask, _ = load_mask_or_placeholder(self.dir_path + mask_RegEx[mask_type], template_shape)
+            mask, _ = load_mask_or_placeholder(self.dir_path + self.mask_RegEx[mask_type], template_shape)
             self.mask_data.append(mask)
         print("length of mask_data: ", len(self.mask_data))
 
