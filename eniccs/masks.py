@@ -8,8 +8,8 @@ from scipy.ndimage import binary_dilation, binary_opening, binary_closing, binar
 class mask:
     def __init__(self, dir_path, mask_RegEx=None):
         if mask_RegEx is None:
-            self.mask_RegEx = dict(Classes="/*_CLASSES.", Cloud="/*_CLOUD.", Cirrus="/*CIRRUS.",
-                              Haze="/*HAZE.", Cloud_shadow="/*CLOUDSHADOW.")
+            self.mask_RegEx = dict(Classes="/*_CLASSES.TIF", Cloud="/*_CLOUD.TIF", Cirrus="/*CIRRUS.TIF",
+                              Haze="/*HAZE.TIF", Cloud_shadow="/*CLOUDSHADOW.TIF")
         else:
             self.mask_RegEx = mask_RegEx
         self.multiclass_mask = mask
