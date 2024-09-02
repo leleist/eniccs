@@ -1,7 +1,8 @@
 import rasterio
 import glob
 import numpy as np
-print("hs_image.py loaded")
+
+
 class hs_image:
     def __init__(self, dir_path, image_regEx=r"/*-SPECTRAL_IMAGE.TIF"):
         self.image = None
