@@ -5,20 +5,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import binary_dilation, binary_opening, binary_closing, binary_erosion
 
-
-
-mask_RegEx = {"Classes" : "/*_CLASSES.TIF", # water, land, backround
-              "Cloud" : "/*_CLOUD.TIF",
-              "Cirrus" : "/*CIRRUS.TIF",
-              "Haze" : "/*HAZE.TIF",
-              "Cloud_shadow" : "/*CLOUDSHADOW.TIF"
-              }
-
 class mask:
     def __init__(self, dir_path, mask_RegEx=None):
         if mask_RegEx is None:
-            mask_RegEx = dict(Classes="/*_CLASSES.TIF", Cloud="/*_CLOUD.TIF", Cirrus="/*CIRRUS.TIF",
-                              Haze="/*HAZE.TIF", Cloud_shadow="/*CLOUDSHADOW.TIF")
+            mask_RegEx = dict(Classes="/*_CLASSES.", Cloud="/*_CLOUD.", Cirrus="/*CIRRUS.",
+                              Haze="/*HAZE.", Cloud_shadow="/*CLOUDSHADOW.")
         self.multiclass_mask = mask
         self.dir_path = dir_path
         self.mask_regEx = mask_RegEx

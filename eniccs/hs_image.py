@@ -4,7 +4,7 @@ import numpy as np
 
 
 class hs_image:
-    def __init__(self, dir_path, image_regEx=r"/*-SPECTRAL_IMAGE.TIF"):
+    def __init__(self, dir_path, image_regEx=r"/*-SPECTRAL_IMAGE."):
         self.image = None
         self.dir_path = dir_path
         self.image_path = glob.glob(dir_path + image_regEx)
