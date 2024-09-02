@@ -8,8 +8,10 @@ from scipy.ndimage import binary_dilation, binary_opening, binary_closing, binar
 class mask:
     def __init__(self, dir_path, mask_RegEx=None):
         if mask_RegEx is None:
-            mask_RegEx = dict(Classes="/*_CLASSES.", Cloud="/*_CLOUD.", Cirrus="/*CIRRUS.",
+            self.mask_RegEx = dict(Classes="/*_CLASSES.", Cloud="/*_CLOUD.", Cirrus="/*CIRRUS.",
                               Haze="/*HAZE.", Cloud_shadow="/*CLOUDSHADOW.")
+        else:
+            self.mask_RegEx = mask_RegEx
         self.multiclass_mask = mask
         self.dir_path = dir_path
         self.mask_regEx = mask_RegEx
@@ -51,7 +53,7 @@ class mask:
         # Load each mask separately
 
         # land and water mask
-        classesmask, template_shape = load_mask_or_placeholder(self.dir_path + mask_RegEx["Classes"])
+        classesmask, template_shape = load_mask_or_placeholder(self.dir_path + self.mask_RegEx["Classes"])
         nodatamask = np.zeros(classesmask.shape)
         nodatamask[classesmask == 3] = 1  # set background class to 1
         self.mask_data.append(nodatamask)
