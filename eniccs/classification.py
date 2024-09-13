@@ -1,19 +1,15 @@
 import numpy as np
+from scipy.optimize import curve_fit
 from scipy.ndimage import binary_closing, binary_opening, binary_dilation
-from sklearn.metrics import f1_score
 import pandas as pd
-import rasterio
-import numpy as np
 import matplotlib.pyplot as plt
-import glob
-import os
-from sklearn.model_selection import train_test_split
-from sklearn.cross_decomposition import PLSRegression
-# from tensorflow.python.keras.utils.np_utils import to_categorical
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.model_selection import cross_val_score
-from sklearn.metrics import make_scorer
 
+# from tensorflow.python.keras.utils.np_utils import to_categorical
+from sklearn.cross_decomposition import PLSRegression
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import make_scorer, classification_report, confusion_matrix, f1_score
+from sklearn.neighbors import LocalOutlierFactor
 
 
 def reshape_image_to_table(image):
@@ -23,6 +19,7 @@ def reshape_image_to_table(image):
 
     return hyperspectral_2D
 
+
 def get_pixellabels(mask, hyperspectral_2D):
     labels = mask.flatten()  # Flatten the mask to match the hyperspectral image shape
     labeled_pixels = hyperspectral_2D[labels >= 0, :]  # Select pixels with labels
@@ -30,14 +27,13 @@ def get_pixellabels(mask, hyperspectral_2D):
 
     return labeled_pixels, labels
 
-def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
-    from sklearn.neighbors import LocalOutlierFactor
 
+def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
     non_outlier_labeled_pixels = None
     non_outlier_labels = None
     # for classes 2 and 3 remove outliers
 
-    print(np.unique(labels, return_counts=True))
+    # print(np.unique(labels, return_counts=True))
 
     for i in [2, 3]:
         class_samples = labeled_pixels[labels == i, :]
@@ -82,7 +78,7 @@ def balance_classes(labeled_pixels, labels, n=3000):
     unique, counts = np.unique(labels, return_counts=True)
     # min_class_size = counts.min()
     min_class_size = n
-    print(f'New minimum class size: {n} samples')
+    # print(f'New minimum class size: {n} samples')
 
     # Randomly select the same number of samples from each class but make sure to not mix index with value
     balanced_pixels = np.zeros((min_class_size * len(unique), labeled_pixels.shape[1]))
@@ -96,6 +92,7 @@ def balance_classes(labeled_pixels, labels, n=3000):
 
     return balanced_pixels, balanced_labels
 
+
 def split_data(balanced_pixels, balanced_labels, test_size=0.3, random_state=321):
     X_train, X_test, y_train, y_test = train_test_split(balanced_pixels, balanced_labels, test_size=test_size, random_state=random_state)
 
@@ -105,18 +102,22 @@ def split_data(balanced_pixels, balanced_labels, test_size=0.3, random_state=321
 
     return X_train, X_test, y_train, y_test
 
+
 def multiclass_plsda(X, y, n_components):
     # one hot encoding
     # y = to_categorical(y)
     # PLS-DA Model
     pls_da = PLSRegression(n_components=n_components)
     pls_da.fit(X, y)
+    print(type(pls_da))
     return pls_da
+
 
 def pls_da_predict(model, X):
     continuous_outputs = model.predict(X)
     categorical_predictions = np.argmax(continuous_outputs, axis=1)  # Assuming one-hot encoded targets
     return categorical_predictions
+
 
 def f1_weighted_scorer(model, X, y_test):
     # TODO: Check if this is even necessary because y_test is not one-hot encoded as to function split_data()
@@ -124,9 +125,8 @@ def f1_weighted_scorer(model, X, y_test):
     predicted_y = pls_da_predict(model, X) # y_pred is not one-hot encoded due to multiclass_plsda return
     return f1_score(true_y, predicted_y, average='weighted')
 
-def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plotbool=True):
-    from scipy.optimize import curve_fit
 
+def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bool=False):
     x_data = n_comp_list
     Y_data = f1_scores_list
 
@@ -176,7 +176,7 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plotboo
 
     # TODO: add fitted line quality evaluation with a criterion on pcov
 
-    if plotbool:
+    if plot_bool: # TODO: make this plot more concise (remove at least 2 dots, move value prints into the plot )
         plt.scatter(x_data, Y_data, label='Data')
         plt.plot(x_data, logistic(x_data, *popt), label='Fitted curve')
         # abline the saturation point on y axis
@@ -193,12 +193,21 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plotboo
         plt.legend()
         plt.show()
 
-    print(f"Estimated Saturation Point at F1= {saturation_point} euqlas n_components = {x_data[closest_index]}")
-    print(f" max F1: {max_F1} at n_components = {x_data[max_F1_index]}, with a difference of {diff} between the saturation point and the max F1 score.")
+    # print(f"Estimated Saturation Point at F1= {saturation_point} euqlas n_components = {x_data[closest_index]}")
+    # print(f" max F1: {max_F1} at n_components = {x_data[max_F1_index]}, with a difference of {diff} between the saturation point and the max F1 score.")
 
     return x_data[closest_index_range_value_range], Y_data[closest_index_range_value_range]
 
-def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1):
+def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_optimization=False):
+    if auto_optimize:
+        # cross validate to find optimal number of components
+        _, _, pls_da = CV_optimize_n_components(X_train, y_train, max_components=20, cv=10, njobs=-1, plot_bool=plot_optimization)
+    else:
+        pls_da = multiclass_plsda(X_train, y_train, n_components=10)
+
+    return pls_da
+
+def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1, plot_bool=False):
     n_components_list = list(range(2, max_components))
 
     # TODO: Check this, it is not used in the function
@@ -214,18 +223,14 @@ def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1):
         f1_scores.append(scores.mean())
 
     # plot the f1 scores against the number of components
-    fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-    ax.plot(n_components_list, f1_scores, marker='o')
-    ax.set_title('F1 score vs number of components')
-    ax.set_xlabel('Number of components')
-    ax.set_ylabel('F1 score')
-    plt.show()
+    # fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+    # ax.plot(n_components_list, f1_scores, marker='o')
+    # ax.set_title('F1 score vs number of components')
+    # ax.set_xlabel('Number of components')
+    # ax.set_ylabel('F1 score')
+    # plt.show()
 
-    # find the optimal number of components
-    optimal_n_components = n_components_list[np.argmax(f1_scores)]
-    print(f'Optimal number of components:  {optimal_n_components}, with overall F1 score: {max(f1_scores):.2f}')
-
-    optimal_n_components, cooresponding_F1score = find_optimal_ncomp_via_saturation_point(n_components_list, f1_scores)
+    optimal_n_components, cooresponding_F1score = find_optimal_ncomp_via_saturation_point(n_components_list, f1_scores, plot_bool=plot_bool)
     print(f'Optimal number of components: {optimal_n_components}, from saturation point analysis with F1 score: {max(f1_scores):.2f}')
 
     # build the final model with the optimal number of components
@@ -234,8 +239,9 @@ def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1):
     return f1_scores, optimal_n_components, pls_da
 
 
-
 def get_VIP(pls_da_model):
+    print(type(pls_da_model), "in vip")
+    # TODO: cite reference for VIP calculation
     T = pls_da_model.x_scores_    # Scores -> new coordinates in PLS space
     W = pls_da_model.x_weights_   # Weights -> impact of features on latent variables
     P = pls_da_model.x_loadings_  # X loadings -> impact of features on scores
@@ -246,7 +252,7 @@ def get_VIP(pls_da_model):
     total_variance = np.sum(SSQ)
 
     # Calculate the contribution of each variable to the components
-    weights_squared = W ** 2
+    weights_squared = W ** 2 # TODO: remove? because square is taken below
     contribution = np.dot(P ** 2, (SSQ / total_variance))
 
     # VIP scores for each variable
@@ -258,12 +264,13 @@ def get_VIP(pls_da_model):
 
     return VIP_df
 
+
 def validation_report(X_test, y_test, pls_da_model):
     # get validation report
-    from sklearn.metrics import classification_report, confusion_matrix
     y_pred = pls_da_predict(pls_da_model, X_test)
     print(classification_report(y_test, y_pred))
     print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+
 
 def predict_on_image(hyperspectral_image, pls_da_model):
     # predict on image
@@ -295,8 +302,8 @@ def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
     X_train, X_test, y_train, y_test = split_data(balanced_pixels, balanced_labels)
 
     # cross validate to find optimal number of components
-    f1_scores, optimal_n_components, pls_da = CV_optimize_n_components(X_train, y_train, max_components, cv=cv, njobs=njobs)
-
+    f1_scores, optimal_n_components, pls_da = CV_optimize_n_components(X_train, y_train, max_components, cv=cv, njobs=njobs) # TODO: is the triple return even needed anymore?
+    print(type(pls_da), "before vip")
     # get VIP scores
     VIP_df = get_VIP(pls_da)
 
@@ -305,22 +312,9 @@ def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
 
     return pls_da, VIP_df
 
-def pls_da_predict(model, X):
-    continuous_outputs = model.predict(X)
-    categorical_predictions = np.argmax(continuous_outputs, axis=1)  # Assuming one-hot encoded targets
-    return categorical_predictions
 
-def predict_on_image(hs_image_obj, pls_da_model):
-    hyperspectral_image = hs_image_obj.image
-    # reshape image to table
-    hyperspectral_2D = reshape_image_to_table(hyperspectral_image)
-    # predict on image
-    predicted_mask = pls_da_predict(pls_da_model, hyperspectral_2D)
-    # reshape predicted mask to image shape
-    predicted_mask_image = predicted_mask.reshape(hyperspectral_image[0].shape)
-    return predicted_mask_image
-
-# build a vector with all function names of this file
-classification_functions = [reshape_image_to_table, get_pixellabels, outlier_removal, balance_classes, split_data,
-                            multiclass_plsda, pls_da_predict, f1_weighted_scorer, CV_optimize_n_components,
-                            get_VIP, validation_report, predict_on_image, train_PLSDA]
+# TODO: whats this for? delete?
+## build a vector with all function names of this file
+#classification_functions = [reshape_image_to_table, get_pixellabels, outlier_removal, balance_classes, split_data,
+#                            multiclass_plsda, pls_da_predict, f1_weighted_scorer, CV_optimize_n_components,
+#                            get_VIP, validation_report, predict_on_image, train_PLSDA]
