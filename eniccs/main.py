@@ -51,7 +51,8 @@ def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
     band_47[band_47 < 0] = 0
 
     # calculate universal CloudIndex (CI) after Zhai et al. 2018, ISPRS
-    ci = (band_75 + 2 * band_153) / (band_6 + band_28 + band_47)
+    with np.errstate(divide='ignore', invalid='ignore'): # catching potential divide by zero error. Nas are handeled accordingly downstream
+        ci = (band_75 + 2 * band_153) / (band_6 + band_28 + band_47)
 
     # apply threshold to CI
     ci_threshold = 1  # small value from (0.01, 0.1, 1, 10, 100) as in Zhai et al. 2018
@@ -132,7 +133,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
 # overall wrapper
 
-def eniccs(dir_path, save_output=True, auto_optimize=True, plot_optimization=False):
+def eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False):
     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks, refines them, trains a PLS-DA model and classifies the image.
     after postprocessing (smoothing) the results are saved as geotiffs.
     dirpath: str, path to the directory containing the geotiffs as provided by the data provider
@@ -150,9 +151,7 @@ def eniccs(dir_path, save_output=True, auto_optimize=True, plot_optimization=Fal
     refine_ccs_masks(spectral_image_obj, mask_obj)
 
     # classify image
-    mask_obj = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_optimization=False)
-
-    # TODO: report accuracies etc. and write to file.
+    mask_obj = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=False)
 
     if save_output:
         mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix="NEW_CLOUD_V2")
@@ -187,7 +186,7 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
 
 # classification wrapper
 
-def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, plot_optimization=False):
+def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, plot_bool=False):
     print("Training PLS-DA model with refined cloud and cloud shadow masks")
 
     # reshape image to table
@@ -205,7 +204,7 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, plot_optim
     # split data
     X_train, X_test, y_train, y_test = split_data(balanced_pixels, balanced_labels)
 
-    pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize, plot_optimization=plot_optimization)
+    pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize, plot_bool=plot_bool)
 
     # get VIP scores
     VIP_df = get_VIP(pls_da) # TODO: Not used currently check notes
@@ -216,14 +215,23 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, plot_optim
     print("Predicting on image...")
 
     # predict on image
-    mask_obj.predicted_mask = predict_on_image(spectral_image_obj, pls_da)
+    mask_obj.predicted_mask = predict_on_image(spectral_image_obj.image, pls_da)
 
     # extract cloud and cloud shadow mask as binary masks
     mask_obj.format_predicted_mask_to_binary()
 
-    # postprocess prediction
-    mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=3, buffer_size=2)
-    mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=3, buffer_size=2)
+    # postprocess predictions
+    mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
+    mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=4, buffer_size=2)
+
+    # postprocess cloudshadow to remove missclassifications
+    mask_obj.reset_cs_coastal_pixels()
+
+    mask_obj._modify_cloud_shadows_based_on_centroid_distance(percentile=75, plot_bool=plot_bool)
+
+    # postprocess predictions
+    mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
+    mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=4, buffer_size=2)
 
     print("Done")
 
