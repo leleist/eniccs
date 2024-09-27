@@ -41,7 +41,7 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
         outliers = lof.fit_predict(class_samples)
         class_pixels_no_outliers = class_samples[outliers != -1]
         class_labels_no_outliers = np.ones(class_pixels_no_outliers.shape[0], dtype=int) * i
-        print(f'Class {i} outliers removed: {class_samples.shape[0] - class_pixels_no_outliers.shape[0]} samples')
+        # print(f'Class {i} outliers removed: {class_samples.shape[0] - class_pixels_no_outliers.shape[0]} samples')
         if non_outlier_labeled_pixels is None:
             non_outlier_labeled_pixels = class_pixels_no_outliers
             non_outlier_labels = class_labels_no_outliers
@@ -109,7 +109,6 @@ def multiclass_plsda(X, y, n_components):
     # PLS-DA Model
     pls_da = PLSRegression(n_components=n_components)
     pls_da.fit(X, y)
-    print(type(pls_da))
     return pls_da
 
 
@@ -198,10 +197,11 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bo
 
     return x_data[closest_index_range_value_range], Y_data[closest_index_range_value_range]
 
-def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_optimization=False):
+def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_bool=False):
     if auto_optimize:
         # cross validate to find optimal number of components
-        _, _, pls_da = CV_optimize_n_components(X_train, y_train, max_components=20, cv=10, njobs=-1, plot_bool=plot_optimization)
+        print("Optimizing number of components for PLS-DA model")
+        _, _, pls_da = CV_optimize_n_components(X_train, y_train, max_components=20, cv=10, njobs=-1, plot_bool=plot_bool)
     else:
         pls_da = multiclass_plsda(X_train, y_train, n_components=10)
 
@@ -240,7 +240,7 @@ def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1, 
 
 
 def get_VIP(pls_da_model):
-    print(type(pls_da_model), "in vip")
+    # print(type(pls_da_model), "in vip")
     # TODO: cite reference for VIP calculation
     T = pls_da_model.x_scores_    # Scores -> new coordinates in PLS space
     W = pls_da_model.x_weights_   # Weights -> impact of features on latent variables
@@ -268,8 +268,9 @@ def get_VIP(pls_da_model):
 def validation_report(X_test, y_test, pls_da_model):
     # get validation report
     y_pred = pls_da_predict(pls_da_model, X_test)
-    print(classification_report(y_test, y_pred))
-    print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+    # print(classification_report(y_test, y_pred))
+    # print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+    print("internal F1 score: ", np.round(f1_score(y_test, y_pred, average='weighted'), 2))
 
 
 def predict_on_image(hyperspectral_image, pls_da_model):
