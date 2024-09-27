@@ -10,12 +10,12 @@ class HsImage:
         self.dir_path = dir_path
         self.image_path = glob.glob(dir_path + image_regex)
         self.image_regex = image_regex
-        self.profile = None
+        self.profile = None # TODO: make metadata conform to mask metadata
         self.no_data_value = None
         self.metadata = None
         self.nodata_mask = None
 
-        print(self.image_path)
+        #print(self.image_path)
 
         # load image upon initialization
         self.load_image()
