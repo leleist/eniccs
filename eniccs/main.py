@@ -133,7 +133,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
 # overall wrapper
 
-def eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, return_mask_obj=False):
+def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, return_mask_obj=False):
     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks, refines them, trains a PLS-DA model and classifies the image.
     after postprocessing (smoothing) the results are saved as geotiffs.
     dirpath: str, path to the directory containing the geotiffs as provided by the data provider
