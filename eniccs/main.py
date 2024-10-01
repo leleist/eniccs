@@ -133,7 +133,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
 # overall wrapper
 
-def eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False):
+def eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, return_mask_obj=False):
     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks, refines them, trains a PLS-DA model and classifies the image.
     after postprocessing (smoothing) the results are saved as geotiffs.
     dirpath: str, path to the directory containing the geotiffs as provided by the data provider
@@ -154,10 +154,14 @@ def eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False):
     mask_obj = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=False)
 
     if save_output:
-        mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix="NEW_CLOUD_V2")
-        mask_obj.save_mask_to_geotiff(mask_obj.new_cloudshadow_mask, filename_prefix="NEW_CLOUDSHADOW_V2")
+        filename_Cloud = mask_obj.datatake_name + "_EnICCS_CLOUD.tif"
+        filename_CloudShadow = mask_obj.datatake_name + "_EnICCS_CLOUDSHADOW.tif"
 
-    return mask_obj
+        mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix=filename_Cloud)
+        mask_obj.save_mask_to_geotiff(mask_obj.new_cloudshadow_mask, filename_prefix=filename_CloudShadow)
+
+    if return_mask_obj:
+        return mask_obj
 
 
 
