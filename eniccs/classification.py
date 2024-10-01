@@ -66,11 +66,14 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
 def balance_classes(labeled_pixels, labels, n=3000):
     unique, counts = np.unique(labels, return_counts=True)
     min_class_size = counts.min()
-    # print(f'Minimum class size: {min_class_size} samples')
 
-    # if a class has < n samples remove this class, check every class
+    # if a class has < n samples raise a warning
     for i, count in enumerate(counts):
         if count < n:
+            print(f'Class {unique[i]} has less than {n} samples, continuing with {count} samples. Mind the class imbalance.')
+
+
+
             labeled_pixels = labeled_pixels[labels != unique[i], :]
             labels = labels[labels != unique[i]]
             print(f'Removed class {unique[i]} with {count} samples')
@@ -84,7 +87,6 @@ def balance_classes(labeled_pixels, labels, n=3000):
     balanced_pixels = np.zeros((min_class_size * len(unique), labeled_pixels.shape[1]))
     balanced_labels = np.zeros(min_class_size * len(unique), dtype=int)
     for i, label in enumerate(unique):
-        # print(f'Balancing class {label} samples')
         class_samples = labeled_pixels[labels == label, :]
         random_indices = np.random.choice(class_samples.shape[0], min_class_size, replace=False)
         balanced_pixels[i * min_class_size:(i + 1) * min_class_size, :] = class_samples[random_indices, :]
