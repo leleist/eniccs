@@ -113,7 +113,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     di_binary[(di >= 0) & (di <= 0.3)] = 1
 
     # extend Cloud shadow with binary DI
-    original_cloudshadow = masklist[6]
+    original_cloudshadow = masklist[4]
     extended_cloudshadow = np.where(di_binary == 1, 1, original_cloudshadow).astype(np.uint8)
 
     # remove water pixels mistakenly classified as cloud shadow
@@ -124,7 +124,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     extended_cloudshadow = np.where(water_land_mask == 1, 0, extended_cloudshadow)
 
     # update cloud mask in masklist
-    masklist[6] = extended_cloudshadow
+    masklist[4] = extended_cloudshadow
     mask_obj.mask_data = masklist
 
     return water_land_mask, di_binary, extended_cloudshadow, original_cloudshadow # TODO: remove return values?

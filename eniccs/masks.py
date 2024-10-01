@@ -10,10 +10,7 @@ from scipy.spatial import cKDTree
 class Mask:
     def __init__(self, dir_path, mask_regex=None):
         if mask_regex is None:
-            self.mask_regex = dict(Classes="/*_CLASSES.TIF", Cloud="/*_CLOUD.TIF",
-                                   Cirrus="/*CIRRUS.TIF", Haze="/*HAZE.TIF",
-                                   Cloud_shadow="/*CLOUDSHADOW.TIF") # TODO: only load necessary ones? because they get saved individually anyways, maybe not because of div. overlaps?
-
+            self.mask_regex = dict(Classes="/*_CLASSES.TIF", Cloud="/*_CLOUD.TIF", Cloud_shadow="/*CLOUDSHADOW.TIF")
         else:
             self.mask_regex = mask_regex
 
@@ -33,6 +30,10 @@ class Mask:
 
         # load all masks and combine them into a multiclass mask upon initialization
         self.load_masks()
+
+        # check if cloud and cloud shadow masks contain enough pixels
+        self._check_CCS_presence()
+
         # copy native multiclass mask
         self.multiclass_mask_native = self.combine_masks()
 
@@ -79,17 +80,18 @@ class Mask:
         cloudmask, template_shape = load_mask_or_placeholder(self.dir_path + self.mask_regex["Cloud"])
         self.mask_data.append(cloudmask)
 
-        # Cirrus mask
-        cirrusmask, _ = load_mask_or_placeholder(self.dir_path + self.mask_regex["Cirrus"], template_shape)
-        cirrusmask[cirrusmask < 4] = 0  # remove thin cirrus classes
-        cirrusmask[cirrusmask > 0] = 1  # merge cirrus clouds to form binary class
-        self.mask_data.append(cirrusmask)
+        # Cloud shadow mask
+        cloudshadowmask, template_shape = load_mask_or_placeholder(self.dir_path + self.mask_regex["Cloud_shadow"])
+        self.mask_data.append(cloudshadowmask)
 
-        # Other masks (Haze, Cloud_shadow, Snow) follow the same pattern
-        for mask_type in ["Haze", "Cloud_shadow"]:  # , "Snow"
-            mask, _ = load_mask_or_placeholder(self.dir_path + self.mask_regex[mask_type], template_shape)
-            self.mask_data.append(mask)
-        # print("length of mask_data: ", len(self.mask_data))
+    def _check_CCS_presence(self):
+        """
+        Check if cloud and cloud shadow masks contain any pixels/samples
+        """
+        for mask in self.mask_data[3:5]: # cloud and cloudsahdow masks
+            pixelcount = np.unique(mask, return_counts=True)[1][1]
+            if pixelcount <= 3000: # 2250 samples is emirically the minimum for a reliable classification, 750px approx. contamination.
+                raise ValueError("Masks do not contain enough Cloud and/or Cloudshadow pixels for further processing. (Min. 3000 px)")
 
     # function to combine all masks into a multiclass mask
     def combine_masks(self):
@@ -142,12 +144,10 @@ class Mask:
 
     def format_mask_for_classification(self):
         formatted_mask = self.multiclass_mask
-        formatted_mask = np.where(formatted_mask == 1, 1, formatted_mask)
-        formatted_mask = np.where(formatted_mask == 2, 1, formatted_mask)
-        formatted_mask = np.where(formatted_mask == 3, 2, formatted_mask)
-        formatted_mask = np.where(formatted_mask == 4, 1, formatted_mask)
-        formatted_mask = np.where(formatted_mask == 5, 1, formatted_mask)
-        formatted_mask = np.where(formatted_mask == 6, 3, formatted_mask)
+        formatted_mask = np.where(formatted_mask == 1, 1, formatted_mask) # land
+        formatted_mask = np.where(formatted_mask == 2, 1, formatted_mask) # water
+        formatted_mask = np.where(formatted_mask == 3, 2, formatted_mask) # cloud
+        formatted_mask = np.where(formatted_mask == 4, 3, formatted_mask) # cloud shadow
 
         self.classification_mask = formatted_mask
 
@@ -251,7 +251,7 @@ class Mask:
         if percentile == "Auto":
             cloud_pixel_count = np.sum(cloud_mask)
             cloudshadow_pixel_count = np.sum(cloud_shadow_mask)
-            ratio = (cloud_pixel_count * 1.3 / cloudshadow_pixel_count) * 100 # original setting: 1.15
+            ratio = (cloud_pixel_count * 1.3 / cloudshadow_pixel_count) * 100 # initial setting: 1.15
             percentile = min(max(ratio, 0), 100) # clamp to range [0, 100] in case of very few detected CS
         else:
             percentile = percentile
