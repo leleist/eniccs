@@ -90,7 +90,6 @@ class Mask:
         """
         for mask in self.mask_data[3:5]: # cloud and cloudsahdow masks
             pixelcount = np.unique(mask, return_counts=True)[1][1]
-            print(f"Pixelcount: {pixelcount}")
 
             if pixelcount <= 3000: # ~2000 samples is emirically the minimum for a reliable classification, 25% approx. contamination.
                 raise ValueError("Masks do not contain enough Cloud and/or Cloudshadow pixels for further processing. (Min. 3000 px)")
