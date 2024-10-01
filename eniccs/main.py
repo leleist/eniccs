@@ -154,8 +154,8 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
     mask_obj = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=False)
 
     if save_output:
-        filename_Cloud = mask_obj.datatake_name + "_EnICCS_CLOUD.tif"
-        filename_CloudShadow = mask_obj.datatake_name + "_EnICCS_CLOUDSHADOW.tif"
+        filename_Cloud = mask_obj.datatake_name + "_EnICCS_CLOUD"
+        filename_CloudShadow = mask_obj.datatake_name + "_EnICCS_CLOUDSHADOW"
 
         mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix=filename_Cloud)
         mask_obj.save_mask_to_geotiff(mask_obj.new_cloudshadow_mask, filename_prefix=filename_CloudShadow)
