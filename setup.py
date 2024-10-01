@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='eniccs',
-    version='0.2.0-alpha',
+    version='0.3.0-alpha',
     packages=['eniccs'],
     install_requires=[
         'scikit-learn==1.3.2',
