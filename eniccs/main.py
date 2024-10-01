@@ -57,7 +57,7 @@ def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
     # apply threshold to CI
     ci_threshold = 1  # small value from (0.01, 0.1, 1, 10, 100) as in Zhai et al. 2018
     ci_binary = np.zeros(spectral_image.shape[1:])
-    ci_binary[np.abs(ci) < ci_threshold] = 1  # TODO: 1 equals cloud # why abs here?
+    ci_binary[np.abs(ci) < ci_threshold] = 1
 
     # Cloud_over_Land_Test
     clt_mask = np.zeros(spectral_image.shape[1:])

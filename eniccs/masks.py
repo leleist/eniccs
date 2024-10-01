@@ -17,6 +17,7 @@ class Mask:
         else:
             self.mask_regex = mask_regex
 
+        # TODO: remove unnecessary attributes
         self.dir_path = dir_path
         self.profile = None
         self.transform = None
