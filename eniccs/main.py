@@ -8,11 +8,12 @@ from .hs_image import HsImage
 
 # find undetected clouds and update cloud mask
 def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
-    """ This function extends the original cloud mask via the  universal CloudIndex (CI) after Zhai et al. 2018, ISPRS
+    """
+    This function extends the original cloud mask via the  universal CloudIndex (CI) after Zhai et al. 2018, ISPRS
     and the Cloud over Land Test (CLT). Undetected small clouds over land are detected and added to the cloud mask.
 
-    spectral_image_obj: eniccs HsImage object
-    mask_obj: eniccs Mask object
+    param spectral_image_obj: eniccs HsImage object
+    param mask_obj: eniccs Mask object
     """
     spectral_image = spectral_image_obj.image
     no_data = spectral_image_obj.no_data_value
@@ -71,7 +72,13 @@ def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
 
 
 def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
-    """ This function extends the original cloud shadow mask. """
+    """
+    This function extends the original cloud shadow mask.
+
+    param spectral_image_obj: eniccs HsImage object
+    param mask_obj: eniccs Mask object
+    """
+
     spectral_image = spectral_image_obj.image
     no_data = spectral_image_obj.no_data_value
     masklist = mask_obj.mask_data
@@ -134,13 +141,19 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 # overall wrapper
 
 def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, return_mask_obj=False):
-    """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks, refines them, trains a PLS-DA model and classifies the image.
-    after postprocessing (smoothing) the results are saved as geotiffs.
-    dirpath: str, path to the directory containing the geotiffs as provided by the data provider
-    save_output: bool, if True the output masks are saved to file
-    auto_optimize: bool, if True the number of components for the PLS-DA model is optimized. If False, the number of components is set to 10.
+    """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks,
+    refines them, trains a PLS-DA model and classifies the image.
+    after postprocessing the results are saved as new rasters.
 
+    param dir_path: str, path to the directory containing the geotiffs as provided by the data provider
+    param save_output: bool, if True the output masks are saved to file
+    param auto_optimize: bool, if True the number of components for the PLS-DA model is optimized. If False, the number of components is set to 10 (default).
+    param plot_bool: bool, if True plots are shown during processing
+    param return_mask_obj: bool, if True the final EnICCS mask object is returned. Default is False.
+
+    return mask_obj: updated eniccs Mask object
     """
+
     # load hyperspectral image
     spectral_image_obj = HsImage(dir_path)
 
@@ -154,8 +167,8 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
     mask_obj = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=False)
 
     if save_output:
-        filename_Cloud = mask_obj.datatake_name + "_EnICCS_CLOUD"
-        filename_CloudShadow = mask_obj.datatake_name + "_EnICCS_CLOUDSHADOW"
+        filename_Cloud = mask_obj.datatake_name + '_EnICCS_CLOUD'
+        filename_CloudShadow = mask_obj.datatake_name + '_EnICCS_CLOUDSHADOW'
 
         mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix=filename_Cloud)
         mask_obj.save_mask_to_geotiff(mask_obj.new_cloudshadow_mask, filename_prefix=filename_CloudShadow)
@@ -167,7 +180,15 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
 
 # mask refinement and classification preparation wrapper
 def refine_ccs_masks(spectral_image_obj, mask_obj):
-    print("Refining cloud and cloud shadow masks with spectral indices")
+    """
+    This function is a wrapper for refining the cloud and cloud shadow masks to improve the suitability for ML training
+
+    param spectral_image_obj: eniccs HsImage object
+    param mask_obj: eniccs Mask object
+    """
+
+
+    print('Refining cloud and cloud shadow masks with spectral indices')
     # improve cloud mask over land
     improve_cloud_mask_over_land(spectral_image_obj, mask_obj)
 
@@ -178,20 +199,35 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
     mask_obj.combine_masks()
 
     # buffer water mask to remove areas of high uncertainty
-    mask_obj.buffer_water_mask(buffer_size=3)
+    mask_obj.buffer_water_mask(buffer_size=3) # TODO: Check if still applicable
 
     # format mask for classification
     mask_obj.format_mask_for_classification()
 
     # save mask to geotiff
-    mask_obj.save_mask_to_geotiff(mask_obj.classification_mask, filename_prefix="CLASSIFICATION_MASK")
+    # mask_obj.save_mask_to_geotiff(mask_obj.classification_mask, filename_prefix='CLASSIFICATION_MASK')
+    # TODO potentially remove the save as its taken from the object itself
 
 
 
 # classification wrapper
 
 def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, plot_bool=False):
-    print("Training PLS-DA model with refined cloud and cloud shadow masks")
+    """
+    This function is a wrapper for the classification of the hyperspectral image using a PLS-DA model.
+    The model is trained with the refined cloud and cloud shadow masks and the hyperspectral image.
+    The model is used to predict on the image and the results are postprocessed.
+
+    param spectral_image_obj: eniccs HsImage object
+    param mask_obj: eniccs Mask object
+    param auto_optimize: bool, if True the number of components for the PLS-DA model is optimized.
+    If False, the number of components is set to 10 (default).
+    param plot_bool: bool, if True plots are shown during processing
+
+    return mask_obj: updated eniccs Mask object
+    """
+
+    print('Training PLS-DA model with refined cloud and cloud shadow masks')
 
     # reshape image to table
     hyperspectral_2D = reshape_image_to_table(spectral_image_obj.image)
@@ -216,13 +252,13 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, plot_bool=
     # get validation report
     validation_report(X_test, y_test, pls_da)
 
-    print("Predicting on image...")
+    print('Predicting on image...')
 
     # predict on image
     mask_obj.predicted_mask = predict_on_image(spectral_image_obj.image, pls_da)
 
     # extract cloud and cloud shadow mask as binary masks
-    mask_obj.format_predicted_mask_to_binary()
+    mask_obj._format_predicted_masks_to_binary()
 
     # postprocess predictions
     mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
@@ -236,7 +272,5 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, plot_bool=
     # postprocess predictions
     mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
     mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=4, buffer_size=2)
-
-    print("Done")
 
     return mask_obj

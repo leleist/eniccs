@@ -13,14 +13,18 @@ from sklearn.neighbors import LocalOutlierFactor
 
 
 def reshape_image_to_table(image):
-    # Reshaping the hyperspectral image for analysis
+    """
+    Reshapes the hyperspectral image to a 2D table for analysis
+    """
     ns, nr, nc = image.shape
     hyperspectral_2D = image.reshape((ns, nr * nc)).T.copy()  # Transpose to (pixels, bands)
-
     return hyperspectral_2D
 
 
 def get_pixellabels(mask, hyperspectral_2D):
+    """
+    Matches the mask to the hyperspectral image and return the labeled pixels
+    """
     labels = mask.flatten()  # Flatten the mask to match the hyperspectral image shape
     labeled_pixels = hyperspectral_2D[labels >= 0, :]  # Select pixels with labels
     labels = labels[labels >= 0]  # Keep corresponding labels
@@ -29,6 +33,18 @@ def get_pixellabels(mask, hyperspectral_2D):
 
 
 def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
+    """
+    Performs basic outlier removal using Local Outlier Factor to narrow down the scope for ML Training.
+    Removes likely mislabeled pixels from classes 2 and 3 (cloud and cloud shadow)
+
+    :param labeled_pixels: 2D array of labeled pixels
+    :param labels: 1D array of labels
+    :param n_neighbors: number of neighbors to consider for LOF
+    :param contamination: approximate proportion of outliers in the data
+
+    :return: non_outlier_labeled_pixels, non_outlier_labels
+
+    """
     non_outlier_labeled_pixels = None
     non_outlier_labels = None
     # for classes 2 and 3 remove outliers
@@ -64,6 +80,15 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
 
 
 def balance_classes(labeled_pixels, labels, n=3000):
+    """
+    Balances the classes by randomly selecting n samples from each class
+
+    :param labeled_pixels: 2D array of labeled pixels
+    :param labels: 1D array of labels
+    :param n: number of samples to select from each class
+
+    :return: balanced_pixels, balanced_labels
+    """
     unique, counts = np.unique(labels, return_counts=True)
     # min_class_size = counts.min()
     unique, counts = np.unique(labels, return_counts=True)
@@ -84,6 +109,15 @@ def balance_classes(labeled_pixels, labels, n=3000):
 
 
 def split_data(balanced_pixels, balanced_labels, test_size=0.3, random_state=321):
+    """
+    Splits the data into training and testing sets. The labels are one-hot encoded for training.
+    Split is mostly necessary for if PLS-DA model Auto_optimize is = True
+
+    :param balanced_pixels: 2D array of balanced pixels
+    :param balanced_labels: 1D array of balanced labels
+    :param test_size: proportion of the data to be used for testing
+    :param random_state: random seed for reproducibility
+    """
     X_train, X_test, y_train, y_test = train_test_split(balanced_pixels, balanced_labels, test_size=test_size, random_state=random_state)
 
     # y_train = to_categorical(y_train) # replaced due to high overhead of importing tensorflow
@@ -94,6 +128,11 @@ def split_data(balanced_pixels, balanced_labels, test_size=0.3, random_state=321
 
 
 def multiclass_plsda(X, y, n_components):
+    """
+    Fits a PLS-DA model to the data
+
+    :return: pls_da model object
+    """
     # one hot encoding
     # y = to_categorical(y)
     # PLS-DA Model
@@ -103,12 +142,22 @@ def multiclass_plsda(X, y, n_components):
 
 
 def pls_da_predict(model, X):
+    """
+    Predicts the class labels using the PLS-DA model.
+    Turns the continuous outputs into categorical predictions.
+
+    :return: categorical predictions
+    """
     continuous_outputs = model.predict(X)
     categorical_predictions = np.argmax(continuous_outputs, axis=1)  # Assuming one-hot encoded targets
     return categorical_predictions
 
 
 def f1_weighted_scorer(model, X, y_test):
+    """
+    Custom scorer for cross-validation that calculates the F1 score for the weighted average of the classes
+    sklearn framework based
+    """
     # TODO: Check if this is even necessary because y_test is not one-hot encoded as to function split_data()
     true_y = np.argmax(y_test, axis=1)  # y_train is one-hot encoded
     predicted_y = pls_da_predict(model, X) # y_pred is not one-hot encoded due to multiclass_plsda return
@@ -116,6 +165,17 @@ def f1_weighted_scorer(model, X, y_test):
 
 
 def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bool=False):
+    """
+    Finds the optimal number of components by fitting a logistic curve to the F1 scores and extracting n_comp
+    closest to the saturation point.
+    Only used when auto_optimize is set to True
+
+    :param n_comp_list: list of possible number of components
+    :param f1_scores_list: list of F1 scores corresponding to the number of components
+    :param plot_bool: boolean to plot the saturation curve fitting
+
+    :return: optimal number of components, corresponding F1 score
+    """
     x_data = n_comp_list
     Y_data = f1_scores_list
 
@@ -182,15 +242,27 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bo
         plt.legend()
         plt.show()
 
-    # print(f"Estimated Saturation Point at F1= {saturation_point} euqlas n_components = {x_data[closest_index]}")
-    # print(f" max F1: {max_F1} at n_components = {x_data[max_F1_index]}, with a difference of {diff} between the saturation point and the max F1 score.")
+    # print(f'Estimated Saturation Point at F1= {saturation_point} euqlas n_components = {x_data[closest_index]}')
+    # print(f' max F1: {max_F1} at n_components = {x_data[max_F1_index]}, with a difference of {diff} between the saturation point and the max F1 score.')
 
     return x_data[closest_index_range_value_range], Y_data[closest_index_range_value_range]
 
 def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_bool=False):
+    """
+    Builds a PLS-DA model with the optimal number of components.
+    Integrates auto optimization argument.
+
+    :param X_train: training data
+    :param y_train: training labels
+    :param auto_optimize: boolean to optimize the number of components
+    :param plot_bool: boolean to plot the saturation curve fitting
+
+    :return: pls_da model object
+    """
+
     if auto_optimize:
         # cross validate to find optimal number of components
-        print("Optimizing number of components for PLS-DA model")
+        print('Optimizing number of components for PLS-DA model')
         _, _, pls_da = CV_optimize_n_components(X_train, y_train, max_components=20, cv=10, njobs=-1, plot_bool=plot_bool)
     else:
         pls_da = multiclass_plsda(X_train, y_train, n_components=10)
@@ -198,6 +270,18 @@ def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_bool=False
     return pls_da
 
 def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1, plot_bool=False):
+    """
+    Applies cross-validation to find the optimal number of components for the PLS-DA model.
+    Returns the F1 scores for each number of components and the optimal number of components.
+
+    :param X_train: training data
+    :param y_train: training labels
+    :param max_components: maximum number of components to test
+    :param cv: number of cross-validation folds
+    :param njobs: number of parallel jobs (default = -1)
+    :param plot_bool: boolean to plot the F1 score vs number of components
+    """
+
     n_components_list = list(range(2, max_components))
 
     # TODO: Check this, it is not used in the function
@@ -230,7 +314,15 @@ def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1, 
 
 
 def get_VIP(pls_da_model):
-    # print(type(pls_da_model), "in vip")
+    """
+    Extract Variable Importance in Projection (VIP) scores (aka feature importance) from the PLS-DA model.
+    Can help to understand model results and identify important features.
+
+    :param pls_da_model: PLS-DA model object
+
+    :return: VIP scores for each feature (here Band)
+    """
+    # print(type(pls_da_model), 'in vip')
     # TODO: cite reference for VIP calculation
     T = pls_da_model.x_scores_    # Scores -> new coordinates in PLS space
     W = pls_da_model.x_weights_   # Weights -> impact of features on latent variables
@@ -249,21 +341,16 @@ def get_VIP(pls_da_model):
     VIP = np.sqrt(pls_da_model.n_features_in_ * contribution)
 
     # subset and oder descending VIP
-    VIP_df = pd.DataFrame(VIP, columns=["VIP"])
-    VIP_df["Band_ID"] = range(1, VIP.shape[0] + 1)
+    VIP_df = pd.DataFrame(VIP, columns=['VIP'])
+    VIP_df['Band_ID'] = range(1, VIP.shape[0] + 1)
 
     return VIP_df
 
-
-def validation_report(X_test, y_test, pls_da_model):
-    # get validation report
-    y_pred = pls_da_predict(pls_da_model, X_test)
-    # print(classification_report(y_test, y_pred))
-    # print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
-    print("internal F1 score: ", np.round(f1_score(y_test, y_pred, average='weighted'), 2))
-
-
 def predict_on_image(hyperspectral_image, pls_da_model):
+    """
+    Applies trained PLS-DA model to a hyperspectral image for prediction.
+    Returns a predicted mask image.
+    """
     # predict on image
     # reshape image to table
     hyperspectral_2D = reshape_image_to_table(hyperspectral_image)
@@ -273,9 +360,26 @@ def predict_on_image(hyperspectral_image, pls_da_model):
     predicted_mask_image = predicted_mask.reshape(hyperspectral_image[0].shape)
     return predicted_mask_image
 
+def validation_report(X_test, y_test, pls_da_model):
+    """
+    Generates a sklearn validation report/F1 Score for the final PLS-DA model.
+    Just for reporting purposes.
+    """
+    # get validation report
+    y_pred = pls_da_predict(pls_da_model, X_test)
+    # print(classification_report(y_test, y_pred))
+    # print('Confusion Matrix:\n', confusion_matrix(y_test, y_pred))
+    print('internal F1 score: ', np.round(f1_score(y_test, y_pred, average='weighted'), 2))
+
+
 
 # wrapper
 def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
+    """
+    Wrapper function to preprocess the data and train a PLS-DA model for multiclass classification.
+    """
+
+    # TODO: Is not used! similar code in Main. Solve this! remove one of them
 
     # reshape image to table
     hyperspectral_2D = reshape_image_to_table(hs_image_obj.image)
@@ -294,7 +398,7 @@ def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
 
     # cross validate to find optimal number of components
     f1_scores, optimal_n_components, pls_da = CV_optimize_n_components(X_train, y_train, max_components, cv=cv, njobs=njobs) # TODO: is the triple return even needed anymore?
-    print(type(pls_da), "before vip")
+    print(type(pls_da), 'before vip')
     # get VIP scores
     VIP_df = get_VIP(pls_da)
 

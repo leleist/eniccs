@@ -8,7 +8,7 @@ class HsImage:
     creates a convenient object from a hyperspectral image.
     allows for easy plotting of bands
     """
-    def __init__(self, dir_path, image_regex=r"/*-SPECTRAL_IMAGE.TIF"):
+    def __init__(self, dir_path, image_regex=r'/*-SPECTRAL_IMAGE.TIF'):
         self.image = None
         self.dir_path = dir_path
         self.image_path = glob.glob(dir_path + image_regex)
