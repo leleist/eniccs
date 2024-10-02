@@ -88,11 +88,19 @@ class Mask:
         """
         Check if cloud and cloud shadow masks contain any pixels/samples
         """
-        for mask in self.mask_data[3:5]: # cloud and cloudsahdow masks
-            pixelcount = np.unique(mask, return_counts=True)[1][1]
+        for mask in self.mask_data[3:5]:  # cloud and cloudshadow masks
+            unique_values, counts = np.unique(mask, return_counts=True)
 
-            if pixelcount <= 3000: # ~2000 samples is emirically the minimum for a reliable classification, 25% approx. contamination.
-                raise ValueError("Masks do not contain enough Cloud and/or Cloudshadow pixels for further processing. (Min. 3000 px)")
+            # Check if there are at least two unique values in the mask
+            if len(counts) > 1:
+                pixelcount = counts[1]
+            else:
+                pixelcount = 0
+
+            if pixelcount <= 3000:
+                raise ValueError(
+                    "Masks do not contain enough Cloud and/or Cloudshadow pixels for further processing. (Min. 3000 px)")
+
 
     # function to combine all masks into a multiclass mask
     def combine_masks(self):
