@@ -371,6 +371,7 @@ class Mask:
 
         if plot_bool:
             plt.hist(distances, bins=20, edgecolor='black')
+            plt.axvline(x=threshold, color='r', linestyle='--')
             plt.title(f'Distribution of Shadow Distances to Nearest Cloud Centroid\nThreshold: {threshold}')
             plt.xlabel('Distance to nearest cloud centroid')
             plt.ylabel('Frequency')
