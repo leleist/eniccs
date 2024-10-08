@@ -335,7 +335,7 @@ class Mask:
         if percentile == 'auto':
             cloud_pixel_count = np.sum(cloud_mask)
             cloudshadow_pixel_count = np.sum(cloud_shadow_mask)
-            ratio = (cloud_pixel_count * 1.3 / cloudshadow_pixel_count) * 100 # initial setting: 1.15
+            ratio = (cloud_pixel_count * 1.15 / cloudshadow_pixel_count) * 100 # initial setting: 1.15
             percentile = min(max(ratio, 0), 100) # clamp to range [0, 100] in case of very few detected CS
         else:
             percentile = percentile
