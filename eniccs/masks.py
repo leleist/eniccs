@@ -120,7 +120,7 @@ class Mask:
         """
         for mask in self.mask_data[3:5]:  # cloud and cloudshadow masks
             unique_values, counts = np.unique(mask, return_counts=True)
-
+            print(f'Unique values: {unique_values}, Counts: {counts}')
             # Check if there are at least two unique values in the mask
             if len(counts) > 1:
                 pixelcount = counts[1]
