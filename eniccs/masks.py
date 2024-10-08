@@ -29,8 +29,6 @@ class Mask:
     - predicted_mask: mask predicted by the model
     - new_cloud_mask: updated cloud mask after postprocessing, binary
     - new_cloudshadow_mask: updated cloudshadow mask after postprocessing, binary
-
-
     """
     def __init__(self, dir_path, mask_regex=None):
         if mask_regex is None:
@@ -59,7 +57,7 @@ class Mask:
         self._check_CCS_presence()
 
         # copy native multiclass mask
-        self.multiclass_mask_native = self.combine_masks()
+        self.multiclass_mask_native = self.combine_masks() # TODO: method does not have a return. better use self.multiclass_mask.deepcopy?
 
 
     # function to load and collect all masks into a list
@@ -150,7 +148,7 @@ class Mask:
 
 
 # apply binary opening (for removing flase positives from water mask)
-    def apply_binary_opening(self, mask_index, structure_size=3):
+    def apply_binary_opening(self, mask_index, structure_size=3): # TODO: method not used? why? Remove?
         """
         Applies binary opening. Allows to buffer e.g. water mask to remove false positives common in native data.
         Updates the mask data list in place.

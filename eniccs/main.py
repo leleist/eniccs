@@ -55,7 +55,7 @@ def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
     with np.errstate(divide='ignore', invalid='ignore'): # catching potential divide by zero error. Nas are handeled accordingly downstream
         ci = (band_75 + 2 * band_153) / (band_6 + band_28 + band_47)
 
-    # apply threshold to CI
+    # apply threshold to CI # TODO: the ree lines lewo are not used because ci_binary is never used later. Remove?
     ci_threshold = 1  # small value from (0.01, 0.1, 1, 10, 100) as in Zhai et al. 2018
     ci_binary = np.zeros(spectral_image.shape[1:])
     ci_binary[np.abs(ci) < ci_threshold] = 1
@@ -112,8 +112,8 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     band_29[band_29 < 0] = 0
 
 
-    # calculate difference index
-    di = band_108 - band_45 + band_108
+    # calculate difference index (2*NIR - Red) to increase the distance between cloud and cloud shadow.
+    di = 2 * band_108 - band_45
 
     # create a binary mask of DI where values between 0.015 and 0.03 are set to 1
     di_binary = np.zeros(spectral_image.shape[1:])
@@ -127,14 +127,15 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     # mask_obj.apply_binary_opening(mask_index=2, structure_size=2)
     # extended_cloudshadow = binary_erosion(extended_cloudshadow, iterations=1)
 
-    water_land_mask = (band_45 > 0.8*band_29) # .astype(float) # exploits logic of green hump in veg. spectrum
+    water_land_mask = (band_45 > 0.8*band_29) # exploits logic of green hump in veg. spectrum. scaling down green allows
+    # to group up light surfaces such as soil with vegetation while still being able to discriminate from water
     extended_cloudshadow = np.where(water_land_mask == 1, 0, extended_cloudshadow)
 
     # update cloud mask in masklist
     masklist[4] = extended_cloudshadow
     mask_obj.mask_data = masklist
 
-    return water_land_mask, di_binary, extended_cloudshadow, original_cloudshadow # TODO: remove return values?
+    # return water_land_mask, di_binary, extended_cloudshadow, original_cloudshadow # TODO: remove return values?
 
     # buffer water mask to exclude coastal areas due to high missclassification rate in original data
 
@@ -267,7 +268,7 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, plot_bool=
     # postprocess cloudshadow to remove missclassifications
     mask_obj.reset_cs_coastal_pixels()
 
-    mask_obj._modify_cloud_shadows_based_on_centroid_distance(percentile=75, plot_bool=plot_bool)
+    mask_obj._modify_cloud_shadows_based_on_centroid_distance(percentile="Auto", plot_bool=plot_bool) # 75
 
     # postprocess predictions
     mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
