@@ -301,7 +301,7 @@ class Mask:
 
         return touch
 
-    def _modify_cloud_shadows_based_on_centroid_distance(self, percentile='Auto', plot_bool=False):
+    def _modify_cloud_shadows_based_on_centroid_distance(self, percentile='auto', plot_bool=False):
         """
         Approximates cloud-cloud shadow association based on the distance between cloud and shadow centroids.
         The distance threshold is calculated based on the specified percentile of the nearest neighbor distances
@@ -332,7 +332,7 @@ class Mask:
         distances, _ = tree.query(shadow_centroids)
 
         # Calculate the threshold based on the specified percentile or find it automatically
-        if percentile == 'Auto':
+        if percentile == 'auto':
             cloud_pixel_count = np.sum(cloud_mask)
             cloudshadow_pixel_count = np.sum(cloud_shadow_mask)
             ratio = (cloud_pixel_count * 1.3 / cloudshadow_pixel_count) * 100 # initial setting: 1.15

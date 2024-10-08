@@ -141,7 +141,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
 # overall wrapper
 
-def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, return_mask_obj=False):
+def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, percentile='auto', return_mask_obj=False):
     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks,
     refines them, trains a PLS-DA model and classifies the image.
     after postprocessing the results are saved as new rasters.
@@ -165,7 +165,7 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
     refine_ccs_masks(spectral_image_obj, mask_obj)
 
     # classify image
-    mask_obj = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=False)
+    mask_obj = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=plot_bool, percentile=percentile)
 
     if save_output:
         filename_Cloud = mask_obj.datatake_name + '_EnICCS_CLOUD'
@@ -213,7 +213,7 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
 
 # classification wrapper
 
-def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile = "Auto",  plot_bool=False):
+def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile = "auto",  plot_bool=False):
     """
     This function is a wrapper for the classification of the hyperspectral image using a PLS-DA model.
     The model is trained with the refined cloud and cloud shadow masks and the hyperspectral image.
