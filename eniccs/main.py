@@ -141,7 +141,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
 # overall wrapper
 
-def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, percentile='auto', return_mask_obj=False):
+def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, percentile=75, return_mask_obj=False):
     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks,
     refines them, trains a PLS-DA model and classifies the image.
     after postprocessing the results are saved as new rasters.
@@ -213,7 +213,7 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
 
 # classification wrapper
 
-def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile = "auto",  plot_bool=False):
+def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile = 75,  plot_bool=False):
     """
     This function is a wrapper for the classification of the hyperspectral image using a PLS-DA model.
     The model is trained with the refined cloud and cloud shadow masks and the hyperspectral image.
@@ -266,7 +266,7 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=4, buffer_size=2)
 
     # postprocess cloudshadow to remove missclassifications
-    mask_obj.reset_cs_coastal_pixels()
+    # mask_obj.reset_cs_coastal_pixels()
 
     mask_obj._modify_cloud_shadows_based_on_centroid_distance(percentile=percentile, plot_bool=plot_bool) # 75
 
