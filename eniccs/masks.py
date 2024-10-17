@@ -254,9 +254,15 @@ class Mask:
         Reset CS masks for coastal pixels due to high uncertainties in native Data.
         this method updates self.new_cloudshadow_mask
         """
+        water_mask = self.mask_data[2].squeeze()
         # TODO: Check redundancy with buffer_water_mask and binary_opening. 3 are a little much from the same task?
         self.new_cloudshadow_mask = np.squeeze(
             np.where(self.coastal_buffer == 1, 0, self.new_cloudshadow_mask))
+        # Update the cloud-shadow mask where there is both water and cloud shadow
+        self.new_cloudshadow_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1),
+                                             1, self.new_cloudshadow_mask)
+        # TODO: Water mask intersection is missing!
+
 
     def _create_combined_mask(self):
         """
@@ -324,6 +330,7 @@ class Mask:
 
         cloud_centroids = np.array([prop.centroid for prop in cloud_props])
         shadow_centroids = np.array([prop.centroid for prop in shadow_props])
+        # Check shapes before proceeding
 
         # Use KDTree for efficient nearest neighbor search
         tree = cKDTree(cloud_centroids)
