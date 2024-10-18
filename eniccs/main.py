@@ -265,10 +265,14 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
     mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=4, buffer_size=2)
 
-    # postprocess cloudshadow to remove missclassifications
-    mask_obj.reset_cs_coastal_pixels()
+    # update water mask to remove falsely classified water pixels in native water mask
+    mask_obj._resolve_cs_water_confusion()
+
 
     mask_obj._modify_cloud_shadows_based_on_centroid_distance(percentile=percentile, plot_bool=plot_bool) # 75
+
+    # postprocess cloudshadow to remove missclassifications along water bodies
+    mask_obj.reset_cs_coastal_pixels()
 
     # postprocess predictions
     mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
