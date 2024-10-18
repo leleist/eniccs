@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import binary_dilation, binary_opening, binary_closing, binary_erosion
 from skimage.measure import label, regionprops
+from skimage.morphology import remove_small_holes
 from scipy.spatial import cKDTree
 
 class Mask:
@@ -259,10 +260,32 @@ class Mask:
         self.new_cloudshadow_mask = np.squeeze(
             np.where(self.coastal_buffer == 1, 0, self.new_cloudshadow_mask))
         # Update the cloud-shadow mask where there is both water and cloud shadow
-        self.new_cloudshadow_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1),
-                                             1, self.new_cloudshadow_mask)
+        # self.new_cloudshadow_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1),
+                                            # 1, self.new_cloudshadow_mask)
         # TODO: Water mask intersection is missing!
 
+    def _resolve_cs_water_confusion(self):
+        """
+        Resolve cloud-shadow water confusion.
+        step1: close holes in cloud shadow mask that originate from CS misclassification as water
+        step2: update water mask to remove missclassified pixels
+        """
+
+        cloudshadow_mask = self.predicted_mask
+        cloudshadow_mask = np.where(cloudshadow_mask == 3, 1, 0)
+        cloudshadow_mask = cloudshadow_mask > 0
+        cloudshadow_mask = remove_small_holes(cloudshadow_mask, area_threshold=400, connectivity=1)
+
+        self.new_cloudshadow_mask = cloudshadow_mask.astype(np.uint8)
+
+        water_mask = self.mask_data[2].squeeze()
+        # where water == 1 and cloudshadow == 1, set water to 0
+        # resolves EnMAP native dark shadow-water confusion to a large extent
+        water_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1), 0, water_mask)
+        self.mask_data[2] = np.expand_dims(water_mask, axis=0)
+
+        # recalculate coastal buffer
+        self.buffer_water_mask()
 
     def _create_combined_mask(self):
         """

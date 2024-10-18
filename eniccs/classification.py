@@ -76,6 +76,8 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
             non_outlier_labeled_pixels = np.vstack((non_outlier_labeled_pixels, class_samples))
             non_outlier_labels = np.hstack((non_outlier_labels, class_labels))
 
+    print(f"remaining samples after outlier removal: {non_outlier_labeled_pixels.shape[0]}")
+
     return non_outlier_labeled_pixels, non_outlier_labels
 
 
