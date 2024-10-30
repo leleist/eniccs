@@ -3,6 +3,7 @@ from scipy.optimize import curve_fit
 from scipy.ndimage import binary_closing, binary_opening, binary_dilation
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 # from tensorflow.python.keras.utils.np_utils import to_categorical
 from sklearn.cross_decomposition import PLSRegression
@@ -76,7 +77,7 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
             non_outlier_labeled_pixels = np.vstack((non_outlier_labeled_pixels, class_samples))
             non_outlier_labels = np.hstack((non_outlier_labels, class_labels))
 
-    print(f"remaining samples after outlier removal: {non_outlier_labeled_pixels.shape[0]}")
+    # print(f"remaining samples after outlier removal: {non_outlier_labeled_pixels.shape[0]}")
 
     return non_outlier_labeled_pixels, non_outlier_labels
 
@@ -228,21 +229,23 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bo
     # TODO: add fitted line quality evaluation with a criterion on pcov
 
     if plot_bool: # TODO: make this plot more concise (remove at least 2 dots, move value prints into the plot )
-        plt.scatter(x_data, Y_data, label='Data')
+        plt.scatter(x_data, Y_data, label='Training F1 scores')
         plt.plot(x_data, logistic(x_data, *popt), label='Fitted curve')
         # abline the saturation point on y axis
-        plt.axhline(y=saturation_point, color='r', linestyle='--', label='Saturation Point')
+        plt.axhline(y=saturation_point, color='r', linestyle='--', label='Saturation level')
         # plot the saturation point on the curve
-        plt.scatter(closest_data_point[0], closest_data_point[1], color='r', label='Closest Data Point')
+        #plt.scatter(closest_data_point[0], closest_data_point[1], color='r', label='Closest data Point')
         # plot the point with the max F1 score
-        plt.scatter(x_data[max_F1_index], Y_data[max_F1_index], color='g', label='Max F1-score')
-        plt.scatter(x_data[closest_index_percent], Y_data[closest_index_percent], color='y', label='Closest Data Point within 0.5% of saturation level')
-        plt.scatter(x_data[closest_index_range_value_range], Y_data[closest_index_range_value_range], facecolors='none', edgecolors='b', linewidths=2, s=150, label='Closest Data Point within 5% of the range of absolute difference')
-        plt.xlabel('X')
-        plt.ylabel('Y')
-        plt.title('Saturation Curve Fitting')
-        plt.legend()
+        #plt.scatter(x_data[max_F1_index], Y_data[max_F1_index], color='g', label='Max F1-score')
+        # plt.scatter(x_data[closest_index_percent], Y_data[closest_index_percent], color='y', label='Closest Data Point within 0.5% of saturation level')
+        plt.scatter(x_data[closest_index_range_value_range], Y_data[closest_index_range_value_range], facecolors='none', edgecolors='b', linewidths=2, s=150, label='Closest Data Point')
+        plt.xlabel('Number of latent variables')
+        plt.ylabel('Training F1 scores')
+        plt.title('PLS-DA latent variable selection via saturation curve fitting')
+        plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.legend(loc='lower right')
         plt.show()
+
 
     # print(f'Estimated Saturation Point at F1= {saturation_point} euqlas n_components = {x_data[closest_index]}')
     # print(f' max F1: {max_F1} at n_components = {x_data[max_F1_index]}, with a difference of {diff} between the saturation point and the max F1 score.')
