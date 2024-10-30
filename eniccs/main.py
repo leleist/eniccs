@@ -88,7 +88,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
     band_108 = spectral_image[107, :, :]  # 1070 nm, NIR
     band_45 = spectral_image[44, :, :]  # 641 nm, Red
-    band_3 = spectral_image[2, :, :]  # 641 nm, Blue
+    band_3 = spectral_image[2, :, :]  # 641 nm, Blue # TODO: remove band3 as it is not used
     band_29 = spectral_image[28, :, :]  # 550 nm, Green
 
     band_108 = band_108 * 0.0001
@@ -135,13 +135,15 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     masklist[4] = extended_cloudshadow
     mask_obj.mask_data = masklist
 
+    # TODO!! simplify above code to  code to (1,  𝑖𝑓 0≤𝐶𝐼≤0.3 𝑎𝑛𝑑 𝑅𝑒𝑑≤0.8∗𝐺𝑟𝑒𝑒𝑛, 0 else)
+
     # return water_land_mask, di_binary, extended_cloudshadow, original_cloudshadow # TODO: remove return values?
 
     # buffer water mask to exclude coastal areas due to high missclassification rate in original data
 
 # overall wrapper
 
-def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, percentile=75, return_mask_obj=False):
+def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, percentile=75, return_mask_obj=False, return_VIP=False):
     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks,
     refines them, trains a PLS-DA model and classifies the image.
     after postprocessing the results are saved as new rasters.
@@ -165,7 +167,7 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
     refine_ccs_masks(spectral_image_obj, mask_obj)
 
     # classify image
-    mask_obj = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=plot_bool, percentile=percentile)
+    mask_obj, VIP_df = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=plot_bool, percentile=percentile, return_VIP=return_VIP)
 
     if save_output:
         filename_Cloud = mask_obj.datatake_name + '_EnICCS_CLOUD'
@@ -174,8 +176,15 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
         mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix=filename_Cloud)
         mask_obj.save_mask_to_geotiff(mask_obj.new_cloudshadow_mask, filename_prefix=filename_CloudShadow)
 
+    if return_mask_obj and return_VIP:
+        return mask_obj, VIP_df
+
+    if return_VIP:
+        return VIP_df
+
     if return_mask_obj:
         return mask_obj
+
 
 
 
@@ -209,11 +218,12 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
     # mask_obj.save_mask_to_geotiff(mask_obj.classification_mask, filename_prefix='CLASSIFICATION_MASK')
     # TODO potentially remove the save as its taken from the object itself
 
+    # TODO: important: ad close_small_holes to final Cloud mask!
 
 
 # classification wrapper
 
-def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile = 75,  plot_bool=False):
+def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile = 75,  plot_bool=False, return_VIP=False):
     """
     This function is a wrapper for the classification of the hyperspectral image using a PLS-DA model.
     The model is trained with the refined cloud and cloud shadow masks and the hyperspectral image.
@@ -248,7 +258,7 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize, plot_bool=plot_bool)
 
     # get VIP scores
-    VIP_df = get_VIP(pls_da) # TODO: Not used currently check notes
+    VIP_df = get_VIP(pls_da)
 
     # get validation report
     validation_report(X_test, y_test, pls_da)
@@ -278,4 +288,4 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
     mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=4, buffer_size=2)
 
-    return mask_obj
+    return mask_obj, VIP_df
