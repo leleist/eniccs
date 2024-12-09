@@ -50,6 +50,7 @@ class Mask:
         self.predicted_mask = None
         self.new_cloud_mask = None
         self.new_cloudshadow_mask = None
+        self.validation_report = None
 
         # load all masks and combine them into a multiclass mask upon initialization
         self.load_masks()
@@ -128,7 +129,7 @@ class Mask:
             else:
                 pixelcount = 0
 
-            if pixelcount <= 3000:
+            if pixelcount <= 2000: # TODO, IMPORTANT: if any are present, load. Then refine and measure afterwards.
                 raise ValueError(
                     'Masks do not contain enough Cloud and/or Cloudshadow pixels for further processing. (Min. 3000 px)')
 
@@ -226,7 +227,7 @@ class Mask:
     #     # print('done')
     #     return final_mask
 
-    def prediction_postprocessing(self, binary_mask, structure_size=4, buffer_size=2): # TODO whats up with buffer size?
+    def prediction_postprocessing(self, binary_mask, structure_size=2, buffer_size=1): # TODO whats up with buffer size?
         """
         Postprocessing of the predicted mask to remove noise and smooth the output
         :param binary_mask: binary mask to be postprocessed
@@ -239,15 +240,17 @@ class Mask:
         # TODO: make sure binray_mask is updated in self.___
         binary_mask = np.squeeze(binary_mask)
         # remove missclassification with water
-        binary_mask = np.where(self.mask_data[2] == 1, 0, binary_mask)
+        # binary_mask = np.where(self.mask_data[2] == 1, 0, binary_mask)
 
         # remove noise
-        binary_mask = binary_erosion(binary_mask, iterations=1)
-        mask_padded = binary_mask# binary_dilation(binary_mask, iterations=buffer_size)
-        structure = np.ones((1, structure_size, structure_size))
+        #binary_mask = binary_erosion(binary_mask, iterations=1)
+        mask_padded = binary_dilation(binary_mask, iterations=buffer_size)
+        structure = np.ones((structure_size, structure_size))
         closed_mask = binary_closing(mask_padded, structure=structure)
         final_mask = binary_opening(closed_mask, structure=structure)
+        final_mask = np.squeeze(final_mask)
         # print('done')
+        print("final mask shape: ", final_mask.shape)
         return final_mask
 
     def reset_cs_coastal_pixels(self):
@@ -342,7 +345,7 @@ class Mask:
         """
         cloud_mask = self.new_cloud_mask
         cloud_shadow_mask = self.new_cloudshadow_mask
-
+        print(cloud_shadow_mask.shape)
         # Label the cloud and cloud shadow masks
         labeled_clouds = label(cloud_mask)
         labeled_shadows = label(cloud_shadow_mask)
@@ -354,6 +357,9 @@ class Mask:
         cloud_centroids = np.array([prop.centroid for prop in cloud_props])
         shadow_centroids = np.array([prop.centroid for prop in shadow_props])
         # Check shapes before proceeding
+        print(cloud_centroids.shape)
+        print(shadow_centroids.shape)
+
 
         # Use KDTree for efficient nearest neighbor search
         tree = cKDTree(cloud_centroids)
@@ -362,7 +368,7 @@ class Mask:
         distances, _ = tree.query(shadow_centroids)
 
         # Calculate the threshold based on the specified percentile or find it automatically
-        if percentile == 'auto':
+        if percentile == 'auto': # TODO: Fix or remove 'auto' option
             cloud_pixel_count = np.sum(cloud_mask)
             cloudshadow_pixel_count = np.sum(cloud_shadow_mask)
             ratio = (cloud_pixel_count * 1.15 / cloudshadow_pixel_count) * 100 # initial setting: 1.15

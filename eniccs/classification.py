@@ -228,6 +228,7 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bo
 
     # TODO: add fitted line quality evaluation with a criterion on pcov
 
+
     if plot_bool: # TODO: make this plot more concise (remove at least 2 dots, move value prints into the plot )
         plt.scatter(x_data, Y_data, label='Training F1 scores')
         plt.plot(x_data, logistic(x_data, *popt), label='Fitted curve')
@@ -365,17 +366,24 @@ def predict_on_image(hyperspectral_image, pls_da_model):
     predicted_mask_image = predicted_mask.reshape(hyperspectral_image[0].shape)
     return predicted_mask_image
 
-def validation_report(X_test, y_test, pls_da_model):
+def get_validation_report(X_test, y_test, pls_da_model, format=False):
     """
     Generates a sklearn validation report/F1 Score for the final PLS-DA model.
     Just for reporting purposes.
+    Formats output for collection and comparison.
     """
     # get validation report
     y_pred = pls_da_predict(pls_da_model, X_test)
-    # print(classification_report(y_test, y_pred))
-    # print('Confusion Matrix:\n', confusion_matrix(y_test, y_pred))
-    print('internal F1 score: ', np.round(f1_score(y_test, y_pred, average='weighted'), 2))
+    f1_score_rd = np.round(f1_score(y_test, y_pred, average='weighted'), 2)
+    print('internal F1 score: ', f1_score_rd)
 
+    if format:
+        report = classification_report(y_test, y_pred, output_dict=True)
+        report_df = pd.DataFrame(report).transpose()
+        #report_df = report_df.iloc[[0,1,2,5]]
+        return report_df
+    else:
+        return None
 
 
 # wrapper

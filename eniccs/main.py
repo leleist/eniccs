@@ -1,6 +1,6 @@
 import numpy as np
 from .classification import (reshape_image_to_table, get_pixellabels, balance_classes, outlier_removal,
-                             split_data, PLSDA_model_builder, get_VIP, validation_report, predict_on_image)
+                             split_data, PLSDA_model_builder, get_VIP, get_validation_report, predict_on_image)
 from .masks import Mask
 from .hs_image import HsImage
 
@@ -261,7 +261,10 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     VIP_df = get_VIP(pls_da)
 
     # get validation report
-    validation_report(X_test, y_test, pls_da)
+    val_report = get_validation_report(X_test, y_test, pls_da, format=True)
+
+    # attach to mask object
+    mask_obj.validation_report = val_report
 
     print('Predicting on image...')
 
@@ -272,8 +275,8 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     mask_obj._format_predicted_masks_to_binary()
 
     # postprocess predictions
-    mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
-    mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=4, buffer_size=2)
+    #mask_obj.new_cloud_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
+    #mask_obj.new_cloudshadow_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=4, buffer_size=2)
 
     # update water mask to remove falsely classified water pixels in native water mask
     mask_obj._resolve_cs_water_confusion()
@@ -285,7 +288,8 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     mask_obj.reset_cs_coastal_pixels()
 
     # postprocess predictions
-    mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=4, buffer_size=2)
-    mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=4, buffer_size=2)
-
+    mask_obj.new_cloud_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=3,
+                                                                 buffer_size=1)
+    mask_obj.new_cloudshadow_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=3,
+                                                                       buffer_size=1)
     return mask_obj, VIP_df
