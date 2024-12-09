@@ -51,6 +51,7 @@ class Mask:
         self.new_cloud_mask = None
         self.new_cloudshadow_mask = None
         self.validation_report = None
+        self.VIP_scores = None
 
         # load all masks and combine them into a multiclass mask upon initialization
         self.load_masks()

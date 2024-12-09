@@ -143,7 +143,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
 # overall wrapper
 
-def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, percentile=75, return_mask_obj=False, return_VIP=False):
+def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, percentile=75, return_mask_obj=False):
     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks,
     refines them, trains a PLS-DA model and classifies the image.
     after postprocessing the results are saved as new rasters.
@@ -167,7 +167,7 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
     refine_ccs_masks(spectral_image_obj, mask_obj)
 
     # classify image
-    mask_obj, VIP_df = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=plot_bool, percentile=percentile, return_VIP=return_VIP)
+    mask_obj, VIP_df = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=plot_bool, percentile=percentile)
 
     if save_output:
         filename_Cloud = mask_obj.datatake_name + '_EnICCS_CLOUD'
@@ -176,11 +176,6 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
         mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix=filename_Cloud)
         mask_obj.save_mask_to_geotiff(mask_obj.new_cloudshadow_mask, filename_prefix=filename_CloudShadow)
 
-    if return_mask_obj and return_VIP:
-        return mask_obj, VIP_df
-
-    if return_VIP:
-        return VIP_df
 
     if return_mask_obj:
         return mask_obj
@@ -223,7 +218,7 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
 
 # classification wrapper
 
-def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile = 75,  plot_bool=False, return_VIP=False):
+def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile = 75, plot_bool=False):
     """
     This function is a wrapper for the classification of the hyperspectral image using a PLS-DA model.
     The model is trained with the refined cloud and cloud shadow masks and the hyperspectral image.
@@ -259,6 +254,7 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
 
     # get VIP scores
     VIP_df = get_VIP(pls_da)
+    mask_obj.VIP_scores = VIP_df
 
     # get validation report
     val_report = get_validation_report(X_test, y_test, pls_da, format=True)

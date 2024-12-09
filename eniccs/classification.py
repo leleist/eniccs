@@ -382,8 +382,7 @@ def get_validation_report(X_test, y_test, pls_da_model, format=False):
         report_df = pd.DataFrame(report).transpose()
         #report_df = report_df.iloc[[0,1,2,5]]
         return report_df
-    else:
-        return None
+
 
 
 # wrapper
@@ -415,8 +414,8 @@ def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
     # get VIP scores
     VIP_df = get_VIP(pls_da)
 
-    # get validation report
-    validation_report(X_test, y_test, pls_da)
+    # # only print F1 score
+    get_validation_report(X_test, y_test, pls_da, format=False)
 
     return pls_da, VIP_df
 
