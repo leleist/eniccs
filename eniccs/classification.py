@@ -82,7 +82,7 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
     return non_outlier_labeled_pixels, non_outlier_labels
 
 
-def balance_classes(labeled_pixels, labels, n=3000):
+def balance_classes(labeled_pixels, labels, n=2000):
     """
     Balances the classes by randomly selecting n samples from each class
 
