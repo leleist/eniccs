@@ -294,6 +294,9 @@ class Mask:
         water_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1), 1, water_mask) # was 0 in v1.17, chasuing larger waterbodies to sometimes be misclassied as CS
         self.mask_data[2] = np.expand_dims(water_mask, axis=0)
 
+        # set CS mask to 0 where water mask is 1
+        self.new_cloudshadow_mask = np.where(water_mask == 1, 0, self.new_cloudshadow_mask)
+
         # recalculate coastal buffer
         self.buffer_water_mask()
 
