@@ -131,7 +131,7 @@ class Mask:
             else:
                 pixelcount = 0
 
-            if pixelcount < 2000: # TODO, IMPORTANT: if any are present, load. Then refine and measure afterwards.
+            if pixelcount < 3000: # TODO, IMPORTANT: if any are present, load. Then refine and measure afterwards.
                 raise ValueError(
                     'Masks do not contain enough Cloud and/or Cloudshadow pixels for further processing. (Min. 3000 px)')
 
