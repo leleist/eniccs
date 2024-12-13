@@ -26,6 +26,7 @@ def get_pixellabels(mask, hyperspectral_2D):
     """
     Matches the mask to the hyperspectral image and return the labeled pixels
     """
+    #print(np.unique(mask, return_counts=True))
     labels = mask.flatten()  # Flatten the mask to match the hyperspectral image shape
     labeled_pixels = hyperspectral_2D[labels >= 0, :]  # Select pixels with labels
     labels = labels[labels >= 0]  # Keep corresponding labels
@@ -82,7 +83,7 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
     return non_outlier_labeled_pixels, non_outlier_labels
 
 
-def balance_classes(labeled_pixels, labels, n=2000):
+def balance_classes(labeled_pixels, labels, n=3000):
     """
     Balances the classes by randomly selecting n samples from each class
 
