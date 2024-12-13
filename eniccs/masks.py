@@ -43,6 +43,7 @@ class Mask:
         self.transform = None
         self.datatake_name = None
         self.mask_data = [] # Placeholder for loaded mask data
+        self.nodata_mask = None
         self.multiclass_mask = None
         self.multiclass_mask_native = None
         self.coastal_buffer = None
@@ -99,7 +100,7 @@ class Mask:
         classesmask, template_shape = _load_mask_or_placeholder(self.dir_path + self.mask_regex['Classes'])
         nodatamask = np.zeros(classesmask.shape)
         nodatamask[classesmask == 3] = 1  # set background class to 1
-        self.mask_data.append(nodatamask)
+        self.mask_data.append(nodatamask) # TODO: can it be replaced with self.nodata_mask?, where is it used?
 
         landmask = np.zeros(classesmask.shape)
         landmask[classesmask == 1] = 1  # set land class to 1
@@ -130,7 +131,7 @@ class Mask:
             else:
                 pixelcount = 0
 
-            if pixelcount <= 2000: # TODO, IMPORTANT: if any are present, load. Then refine and measure afterwards.
+            if pixelcount < 2000: # TODO, IMPORTANT: if any are present, load. Then refine and measure afterwards.
                 raise ValueError(
                     'Masks do not contain enough Cloud and/or Cloudshadow pixels for further processing. (Min. 3000 px)')
 
@@ -210,7 +211,7 @@ class Mask:
         formatted_mask = np.where(formatted_mask == 2, 1, formatted_mask) # water
         formatted_mask = np.where(formatted_mask == 3, 2, formatted_mask) # cloud
         formatted_mask = np.where(formatted_mask == 4, 3, formatted_mask) # cloud shadow
-
+        #print("i was called, the unique values are: ", np.unique(formatted_mask, return_counts=True))
         self.classification_mask = formatted_mask
 
     # def prediction_postprocessing(self, binary_mask, structure_size=4, buffer_size=2):
@@ -284,8 +285,13 @@ class Mask:
 
         water_mask = self.mask_data[2].squeeze()
         # where water == 1 and cloudshadow == 1, set water to 0
+
+        # update water mask with no_data mask
+        nodata_mask = self.nodata_mask.squeeze()
+        water_mask = np.where(nodata_mask == 1, 0, water_mask)
+
         # resolves EnMAP native dark shadow-water confusion to a large extent
-        water_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1), 0, water_mask)
+        water_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1), 1, water_mask) # was 0 in v1.17, chasuing larger waterbodies to sometimes be misclassied as CS
         self.mask_data[2] = np.expand_dims(water_mask, axis=0)
 
         # recalculate coastal buffer
@@ -422,15 +428,20 @@ class Mask:
         self.new_cloudshadow_mask = np.where(result_mask == 2, 1, 0)
 
 
-
-
     def _format_predicted_masks_to_binary(self):
         """
         Formats the predicted masks to binary cloud and cloudshadow masks for postprocessing.
         """
-
         self.new_cloudshadow_mask = np.where(self.predicted_mask == 3, 1, 0).astype(np.uint8)
         self.new_cloud_mask = np.where(self.predicted_mask == 2, 1, 0).astype(np.uint8)
+
+    def reapply_nodata_mask(self):
+        """
+        Reapplies the no data mask to the cloud and cloudshadow masks.
+        """
+        self.new_cloud_mask = np.where(self.nodata_mask == 1, 0, self.new_cloud_mask)
+        self.new_cloudshadow_mask = np.where(self.nodata_mask == 1, 0, self.new_cloudshadow_mask)
+
 
 
     def save_mask_to_geotiff(self, raster=None, filename_prefix=None):

@@ -4,7 +4,16 @@ from .classification import (reshape_image_to_table, get_pixellabels, balance_cl
 from .masks import Mask
 from .hs_image import HsImage
 
-
+def transfer_nodata_to_mask(mask_obj, spectral_image_obj):
+    """
+    This function transfers the nodata mask (bad pixels) to the mask obj.
+    param mask_obj: eniccs Mask object
+    param spectral_image_obj: eniccs HsImage object
+    """
+    nodata_mask = np.zeros_like(spectral_image_obj.image[0, :, :])
+    nodata_mask[spectral_image_obj.image[0, :, :] == spectral_image_obj.no_data_value] = 1
+    nodata_mask = np.expand_dims(nodata_mask, axis=0)
+    mask_obj.nodata_mask = nodata_mask
 
 # find undetected clouds and update cloud mask
 def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
@@ -82,7 +91,6 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     spectral_image = spectral_image_obj.image
     no_data = spectral_image_obj.no_data_value
     masklist = mask_obj.mask_data
-
 
     no_data_condition = spectral_image[0, :, :] == no_data
 
@@ -163,6 +171,9 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
     # load masks
     mask_obj = Mask(dir_path)
 
+    # transfer nodata mask to mask object
+    transfer_nodata_to_mask(mask_obj, spectral_image_obj)
+
     # refine cloud and cloud shadow masks
     refine_ccs_masks(spectral_image_obj, mask_obj)
 
@@ -233,7 +244,10 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     return mask_obj: updated eniccs Mask object
     """
 
-    print('Training PLS-DA model with refined cloud and cloud shadow masks')
+    # print('Training PLS-DA model with refined cloud and cloud shadow masks')
+
+    # mask out no data pixels
+    # mask_obj.classification_mask[mask_obj.no_data_mask == 1] = 0 # TODO Remove?
 
     # reshape image to table
     hyperspectral_2D = reshape_image_to_table(spectral_image_obj.image)
@@ -266,6 +280,7 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
 
     # predict on image
     mask_obj.predicted_mask = predict_on_image(spectral_image_obj.image, pls_da)
+    mask_obj.predicted_mask = np.where(mask_obj.nodata_mask == 1, 0, mask_obj.predicted_mask)
 
     # extract cloud and cloud shadow mask as binary masks
     mask_obj._format_predicted_masks_to_binary()
@@ -288,4 +303,6 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
                                                                  buffer_size=1)
     mask_obj.new_cloudshadow_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=3,
                                                                        buffer_size=1)
+    mask_obj.reapply_nodata_mask()
+
     return mask_obj, VIP_df

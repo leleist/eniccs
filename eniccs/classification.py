@@ -92,8 +92,7 @@ def balance_classes(labeled_pixels, labels, n=2000):
 
     :return: balanced_pixels, balanced_labels
     """
-    unique, counts = np.unique(labels, return_counts=True)
-    # min_class_size = counts.min()
+
     unique, counts = np.unique(labels, return_counts=True)
     # min_class_size = counts.min()
     min_class_size = n
@@ -104,6 +103,7 @@ def balance_classes(labeled_pixels, labels, n=2000):
     balanced_labels = np.zeros(min_class_size * len(unique), dtype=int)
     for i, label in enumerate(unique):
         class_samples = labeled_pixels[labels == label, :]
+        print(f'Class {label} has {class_samples.shape[0]} samples and min_class_size is {min_class_size}')
         random_indices = np.random.choice(class_samples.shape[0], min_class_size, replace=False)
         balanced_pixels[i * min_class_size:(i + 1) * min_class_size, :] = class_samples[random_indices, :]
         balanced_labels[i * min_class_size:(i + 1) * min_class_size] = label
