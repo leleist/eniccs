@@ -291,11 +291,14 @@ class Mask:
         water_mask = np.where(nodata_mask == 1, 0, water_mask)
 
         # resolves EnMAP native dark shadow-water confusion to a large extent
-        water_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1), 1, water_mask) # was 0 in v1.17, chasuing larger waterbodies to sometimes be misclassied as CS
+        water_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1), 0, water_mask)
+        # was 0 in v0.17, chasuing larger waterbodies to sometimes be misclassied as CS
+        # changed back in v0.18.2 to 1, as it was in v0.16
         self.mask_data[2] = np.expand_dims(water_mask, axis=0)
 
         # set CS mask to 0 where water mask is 1
-        self.new_cloudshadow_mask = np.where(water_mask == 1, 0, self.new_cloudshadow_mask)
+        #self.new_cloudshadow_mask = np.where(water_mask == 1, 0, self.new_cloudshadow_mask)
+        # TODO: THIS IS THE CRITICAL POINT TO FIGURE OUT!!
 
         # recalculate coastal buffer
         self.buffer_water_mask()
