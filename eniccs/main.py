@@ -129,7 +129,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
     # extend Cloud shadow with binary DI
     original_cloudshadow = masklist[4]
-    # extended_cloudshadow = np.where(di_binary == 1, 1, original_cloudshadow).astype(np.uint8)
+    #extended_cloudshadow = np.where(di_binary == 1, 1, original_cloudshadow).astype(np.uint8)
     # above line extents native CS. Was replad by below line to create a new mask that is not influenced by the original.
     # this is because of large and numerous missclassifications in the original cloud shadow mask
     # TODO: check if this is the best approach
@@ -142,9 +142,11 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     water_land_mask = (band_45 > 0.8*band_29) # exploits logic of green hump in veg. spectrum. scaling down green allows
     # to group up light surfaces such as soil with vegetation while still being able to discriminate from water
     extended_cloudshadow = np.where(water_land_mask == 1, 0, extended_cloudshadow)
+    extended_cloudshadow = np.expand_dims(extended_cloudshadow, axis=0)
 
     # update cloud mask in masklist
     masklist[4] = extended_cloudshadow
+
     mask_obj.mask_data = masklist
 
     # TODO!! simplify above code to  code to (1,  𝑖𝑓 0≤𝐶𝐼≤0.3 𝑎𝑛𝑑 𝑅𝑒𝑑≤0.8∗𝐺𝑟𝑒𝑒𝑛, 0 else)

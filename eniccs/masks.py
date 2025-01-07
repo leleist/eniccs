@@ -142,9 +142,8 @@ class Mask:
         Combines all loaded masks into a multiclass mask.
         """
 
-        self.multiclass_mask = np.zeros(self.mask_data[0].shape)  # Initialize the multiclass mask
+        self.multiclass_mask = np.zeros(self.mask_data[0].shape)
         for i, mask in enumerate(self.mask_data): # start=1
-            # Set mask values to the current class value (i)
             self.multiclass_mask[mask != 0] = i
 
         # overwrite cloudshadow with water mask to address CS-Water confusion in original data for training
