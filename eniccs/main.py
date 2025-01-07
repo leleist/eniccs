@@ -129,7 +129,11 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
     # extend Cloud shadow with binary DI
     original_cloudshadow = masklist[4]
-    extended_cloudshadow = np.where(di_binary == 1, 1, original_cloudshadow).astype(np.uint8)
+    # extended_cloudshadow = np.where(di_binary == 1, 1, original_cloudshadow).astype(np.uint8)
+    # above line extents native CS. Was replad by below line to create a new mask that is not influenced by the original.
+    # this is because of large and numerous missclassifications in the original cloud shadow mask
+    # TODO: check if this is the best approach
+    extended_cloudshadow = np.where(di_binary == 1, 1, 0).astype(np.uint8)
 
     # remove water pixels mistakenly classified as cloud shadow
     # mask_obj.apply_binary_opening(mask_index=2, structure_size=2)
