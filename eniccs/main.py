@@ -303,6 +303,9 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
                                                                  buffer_size=1)
     mask_obj.new_cloudshadow_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=3,
                                                                        buffer_size=1)
+    # reconciling cloud and cloud shadow masks, favoring cloud mask
+    mask_obj.new_cloudshadow_mask[mask_obj.new_cloud_mask == 1] = 0
+
     mask_obj.reapply_nodata_mask()
 
     return mask_obj, VIP_df
