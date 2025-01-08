@@ -52,7 +52,7 @@ new cloud and cloudshadow masks will be saved to "dir_path"
 ## Examples
 Here is an example an EnMAP Image with original and EnICCS improved cloud and cloud shadow masks:
 
-![Example Mask comparison](example_image/EXAMPLE_DUMMY.png)
+![Example Mask comparison](example_image/EnICCS_Example2.png)
 
 
 
