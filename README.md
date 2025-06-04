@@ -41,6 +41,8 @@ from eniccs import run_eniccs
 dir_path = r"path/to/your/EnMAP/TIFFS"
 eniccs(dir_path)
 ```
+Please note: EnICCS currently only accepts ".TIF" for file extensions. Not .tif, .tiff or .TIFF. This will be fixed ASAP. 
+
 new cloud and cloudshadow masks will be saved to "dir_path"
 
 ## Examples
