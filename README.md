@@ -26,15 +26,9 @@ The main aim is to reduce cloud contamination in automated processing chains to 
 
 To install **eniccs**, you can use pip:
 
-```bash
-pip install eniccs
-```
-
 For the latest fixes, you can clone the repository and install it:
 ```bash
-git clone https://github.com/username/eniccs.git
-cd repository
-pip install -e .
+pip install git+https://github.com/leleist/eniccs3.git
 ```
 
 ## Usage
@@ -42,7 +36,7 @@ To use **EnICCS**, you can import it and run the main wrapper function in defaul
 Just provide the directory path of the EnMAP data
 
 ```python
-import eniccs
+from eniccs import run_eniccs
 
 dir_path = r"path/to/your/EnMAP/TIFFS"
 eniccs(dir_path)
@@ -57,11 +51,11 @@ Here is an example an EnMAP Image with original and EnICCS improved cloud and cl
 
 
 ## Notes
-This projects was developed and tested on ~100 scenes from agricultural areas in western Kenya.
+This projects was developed and tested on ~50 scenes from agricultural areas in western Kenya.
 Adjustments may be needed for regions with differing surface properties. 
 
-currently cloud and cloud shadow masks are based on classification and thus highly dependent on good training data. 
-While slight postprocessing is applied to the masks, object based logic similar to that used in e.g. Fmask is not yet implemented.
+Currently cloud and cloud shadow masks are based on classification and thus highly dependent on good training data. 
+
 
 ## Contributing
 Contributions are welcome!
