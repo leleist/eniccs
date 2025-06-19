@@ -378,7 +378,7 @@ def classify_image(
         plot: bool = False,
         smooth_output: bool = True,
         n_jobs: int = -1,
-) -> tuple['Mask', 'DataFrame']:
+):
     """
     Classify hyperspectral image using PLS-DA model for cloud and cloud shadow detection.
 
