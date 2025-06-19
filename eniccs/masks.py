@@ -67,40 +67,28 @@ class Mask:
         Loads necessary masks and appends them to the mask_data list.
         """
 
-        template_shape = None  # To hold the shape of the first successfully loaded mask
-
-        def _load_mask_or_placeholder(path_pattern, template_shape=None):
-            """
-            Load a mask or return a placeholder if the mask is not found.
-            only of local importance.
-            """
+        def load_pattern(pattern):
             paths = []
             for ext in ['TIF', 'tif', 'TIFF', 'tiff']:
-                paths.extend(glob.glob(f"{self.dir_path}/*{path_pattern}.{ext}"))
+                paths.extend(glob.glob(f"{self.dir_path}/*{pattern}.{ext}"))
 
-            if paths:
-                with rasterio.open(paths[0]) as src:
-                    if template_shape is None:
-                        # Save the shape of the first successfully loaded mask
-                        template_shape = src.read(1).shape
-                        self.transform = src.transform  # save Georeference info for later use
-                        self.profile = src.profile
-                        self.datatake_name = os.path.basename(paths[0])[0:74]
-                    return src.read(), template_shape
-            else:
-                if template_shape is None:
-                    raise ValueError('First mask cannot be a placeholder, no reference shape available.')
-                # Return an array of zeros with the same shape as the first mask
-                print(f'Mask not found: {path_pattern} using placeholder')
-                return np.zeros((1, *template_shape)), template_shape
+            if not paths:
+                raise FileNotFoundError(
+                    f"Required mask file not found: *{pattern}.[TIF|tif|TIFF|tiff] in {self.dir_path}")
+
+            with rasterio.open(paths[0]) as src:
+                if not hasattr(self, 'transform'):
+                    self.transform = src.transform
+                    self.profile = src.profile
+                    self.datatake_name = os.path.basename(paths[0])[0:74]
+                return src.read()
 
         # Load each mask separately
-
         # land and water mask
-        classesmask, template_shape = _load_mask_or_placeholder(self.mask_patterns['Classes'])
+        classesmask = load_pattern(self.mask_patterns['Classes'])
         nodatamask = np.zeros(classesmask.shape)
         nodatamask[classesmask == 3] = 1  # set background class to 1
-        self.mask_data.append(nodatamask) # TODO: can it be replaced with self.nodata_mask?, where is it used?
+        self.mask_data.append(nodatamask)  # TODO: can it be replaced with self.nodata_mask?, where is it used?
 
         landmask = np.zeros(classesmask.shape)
         landmask[classesmask == 1] = 1  # set land class to 1
@@ -111,11 +99,11 @@ class Mask:
         self.mask_data.append(watermask)
 
         # Cloud mask
-        cloudmask, template_shape = _load_mask_or_placeholder(self.mask_patterns['Cloud'])
+        cloudmask = load_pattern(self.mask_patterns['Cloud'])
         self.mask_data.append(cloudmask)
 
         # Cloud shadow mask
-        cloudshadowmask, template_shape = _load_mask_or_placeholder(self.mask_patterns['Cloud_shadow'])
+        cloudshadowmask = load_pattern(self.mask_patterns['Cloud_shadow'])
         self.mask_data.append(cloudshadowmask)
 
     def _check_CCS_presence(self):
