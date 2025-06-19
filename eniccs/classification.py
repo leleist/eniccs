@@ -34,7 +34,7 @@ def get_pixellabels(mask, hyperspectral_2D):
     return labeled_pixels, labels
 
 
-def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
+def outlier_removal(labeled_pixels, labels, contamination: float = 0.25, n_neighbors=50):
     """
     Performs basic outlier removal using Local Outlier Factor to narrow down the scope for ML Training.
     Removes likely mislabeled pixels from classes 2 and 3 (cloud and cloud shadow)
@@ -83,21 +83,19 @@ def outlier_removal(labeled_pixels, labels, n_neighbors=50, contamination=0.25):
     return non_outlier_labeled_pixels, non_outlier_labels
 
 
-def balance_classes(labeled_pixels, labels, n=3000):
+def balance_classes(labeled_pixels, labels, num_samples):
     """
     Balances the classes by randomly selecting n samples from each class
 
     :param labeled_pixels: 2D array of labeled pixels
     :param labels: 1D array of labels
-    :param n: number of samples to select from each class
+    :param num_samples: number of samples to select from each class
 
     :return: balanced_pixels, balanced_labels
     """
 
     unique, counts = np.unique(labels, return_counts=True)
-    # min_class_size = counts.min()
-    min_class_size = n
-    # print(f'New minimum class size: {n} samples')
+    min_class_size = num_samples
 
     # Randomly select the same number of samples from each class but make sure to not mix index with value
     balanced_pixels = np.zeros((min_class_size * len(unique), labeled_pixels.shape[1]))
@@ -254,7 +252,7 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bo
 
     return x_data[closest_index_range_value_range], Y_data[closest_index_range_value_range]
 
-def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_bool=False):
+def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_bool=False, n_jobs=-1):
     """
     Builds a PLS-DA model with the optimal number of components.
     Integrates auto optimization argument.
@@ -270,7 +268,7 @@ def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_bool=False
     if auto_optimize:
         # cross validate to find optimal number of components
         print('Optimizing number of components for PLS-DA model')
-        _, _, pls_da = CV_optimize_n_components(X_train, y_train, max_components=20, cv=10, njobs=-1, plot_bool=plot_bool)
+        _, _, pls_da = CV_optimize_n_components(X_train, y_train, max_components=20, cv=10, njobs=n_jobs, plot_bool=plot_bool)
     else:
         pls_da = multiclass_plsda(X_train, y_train, n_components=10)
 
