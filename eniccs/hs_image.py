@@ -5,17 +5,24 @@ import matplotlib.pyplot as plt
 class HsImage:
     """
     HsImage class
-    creates a convenient object from a hyperspectral image.
-    allows for easy plotting of bands
+    creates a convenient object from a hyperspectral image cube.
     """
-    def __init__(self, dir_path, image_regex=r'/*-SPECTRAL_IMAGE.TIF'):
+    def __init__(self, dir_path, filename_pattern='-SPECTRAL_IMAGE', extensions=['TIF', 'tif', 'TIFF', 'tiff']):
         self.image = None
         self.dir_path = dir_path
-        self.image_path = glob.glob(dir_path + image_regex)
-        self.image_regex = image_regex
+        self.image_path = []
+        self.filename_pattern = filename_pattern
+        self.extensions = extensions
         self.profile = None
         self.no_data_value = None
         self.metadata = None
+
+        # test trough different extensions
+        for ext in extensions:
+            self.image_path.extend(glob.glob(f"{dir_path}/*{filename_pattern}.{ext}"))
+
+        if not self.image_path:
+            raise FileNotFoundError(f"No files found with pattern '*{filename_pattern}' and extensions {extensions}")
 
         # load image upon initialization
         self._load_image()
