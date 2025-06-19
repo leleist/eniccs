@@ -28,7 +28,7 @@ class Mask:
     - new_cloud_mask: updated cloud mask after postprocessing, binary
     - new_cloudshadow_mask: updated cloudshadow mask after postprocessing, binary
     """
-    def __init__(self, dir_path, mask_patterns=None):
+    def __init__(self, dir_path, mask_patterns=None, num_samples=3000,):
         if mask_patterns is None:
             self.mask_patterns = dict(Classes='_CLASSES', Cloud='_CLOUD', Cloud_shadow='CLOUDSHADOW')
         else:
@@ -43,6 +43,7 @@ class Mask:
         self.nodata_mask = None
         self.multiclass_mask = None
         self.multiclass_mask_native = None
+        self.min_samples = num_samples
         self.coastal_buffer = None
         self.classification_mask = None
         self.predicted_mask = None
@@ -108,20 +109,16 @@ class Mask:
 
     def _check_CCS_presence(self):
         """
-        Checks if cloud and cloud shadow masks contain any pixels/samples.
+        Checks if cloud and cloud shadow masks contain enough pixels/samples.
         """
         for mask in self.mask_data[3:5]:  # cloud and cloudshadow masks
-            unique_values, counts = np.unique(mask, return_counts=True)
-            print(f'Unique values: {unique_values}, Counts: {counts}')
-            # Check if there are at least two unique values in the mask
-            if len(counts) > 1:
-                pixelcount = counts[1]
-            else:
-                pixelcount = 0
+            pixelcount = np.sum(mask == 1)  # Count pixels that are exactly 1
 
-            if pixelcount < 3000: # TODO, IMPORTANT: if any are present, load. Then refine and measure afterwards.
+            if pixelcount < self.min_samples:
                 raise ValueError(
-                    'Masks do not contain enough Cloud and/or Cloudshadow pixels for further processing. (Min. 3000 px)')
+                    f'Insufficient cloud/shadow pixels: {pixelcount} < {self.min_samples}. '
+                    f'Recommended default is 3000. Consider lowering min_samples parameter.')
+
 
 
     # function to combine all masks into a multiclass mask
