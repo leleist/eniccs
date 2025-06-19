@@ -13,12 +13,9 @@ class Mask:
     Mask class, creates a convenient object from a set of masks.
     allows for loading and processing of cloud and cloudshadow masks.
 
-    :param dir_path: path to the directory containing the masks
-    :param mask_regex: dictionary containing the regex patterns for the mask files in native naming convention
-
     attributes:
     - dir_path: path to the directory containing the masks, also used for saving the EnICCS masks
-    - mask_regex: dictionary containing the regex patterns for the mask files in native naming convention
+    - mask_patterns: dictionary containing the patterns for the mask files in operational naming convention
     - profile: rasterio profile of the first loaded mask
     - transform: transform of the first loaded mask
     - datatake_name: name of the datatake in native naming convention, used for saving the EnICCS masks
@@ -31,11 +28,11 @@ class Mask:
     - new_cloud_mask: updated cloud mask after postprocessing, binary
     - new_cloudshadow_mask: updated cloudshadow mask after postprocessing, binary
     """
-    def __init__(self, dir_path, mask_regex=None):
-        if mask_regex is None:
-            self.mask_regex = dict(Classes='/*_CLASSES.TIF', Cloud='/*_CLOUD.TIF', Cloud_shadow='/*CLOUDSHADOW.TIF')
+    def __init__(self, dir_path, mask_patterns=None):
+        if mask_patterns is None:
+            self.mask_patterns = dict(Classes='_CLASSES', Cloud='_CLOUD', Cloud_shadow='CLOUDSHADOW')
         else:
-            self.mask_regex = mask_regex
+            self.mask_patterns = mask_patterns
 
         # TODO: remove unnecessary attributes
         self.dir_path = dir_path
@@ -77,7 +74,10 @@ class Mask:
             Load a mask or return a placeholder if the mask is not found.
             only of local importance.
             """
-            paths = glob.glob(path_pattern)
+            paths = []
+            for ext in ['TIF', 'tif', 'TIFF', 'tiff']:
+                paths.extend(glob.glob(f"{self.dir_path}/*{path_pattern}.{ext}"))
+
             if paths:
                 with rasterio.open(paths[0]) as src:
                     if template_shape is None:
@@ -97,7 +97,7 @@ class Mask:
         # Load each mask separately
 
         # land and water mask
-        classesmask, template_shape = _load_mask_or_placeholder(self.dir_path + self.mask_regex['Classes'])
+        classesmask, template_shape = _load_mask_or_placeholder(self.mask_patterns['Classes'])
         nodatamask = np.zeros(classesmask.shape)
         nodatamask[classesmask == 3] = 1  # set background class to 1
         self.mask_data.append(nodatamask) # TODO: can it be replaced with self.nodata_mask?, where is it used?
@@ -111,11 +111,11 @@ class Mask:
         self.mask_data.append(watermask)
 
         # Cloud mask
-        cloudmask, template_shape = _load_mask_or_placeholder(self.dir_path + self.mask_regex['Cloud'])
+        cloudmask, template_shape = _load_mask_or_placeholder(self.mask_patterns['Cloud'])
         self.mask_data.append(cloudmask)
 
         # Cloud shadow mask
-        cloudshadowmask, template_shape = _load_mask_or_placeholder(self.dir_path + self.mask_regex['Cloud_shadow'])
+        cloudshadowmask, template_shape = _load_mask_or_placeholder(self.mask_patterns['Cloud_shadow'])
         self.mask_data.append(cloudshadowmask)
 
     def _check_CCS_presence(self):
@@ -197,7 +197,7 @@ class Mask:
         water_buffer_pixels = extended_water_mask - water_mask
 
         self.coastal_buffer = np.where(self.mask_data[0] == 1, 0, water_buffer_pixels)
-
+        # todo: very weird implementation of coastal uffer. is it needed?
 
 
     def format_mask_for_classification(self):
@@ -238,8 +238,14 @@ class Mask:
         :return: postprocessed binary mask
         """
 
+
+
         # TODO: make sure binray_mask is updated in self.___
         binary_mask = np.squeeze(binary_mask)
+
+        # close small holes
+        binary_mask = remove_small_holes(binary_mask.astype(bool), area_threshold=600, connectivity=1)
+
         # remove missclassification with water
         # binary_mask = np.where(self.mask_data[2] == 1, 0, binary_mask)
 
@@ -445,8 +451,6 @@ class Mask:
         """
         self.new_cloud_mask = np.where(self.nodata_mask == 1, 0, self.new_cloud_mask)
         self.new_cloudshadow_mask = np.where(self.nodata_mask == 1, 0, self.new_cloudshadow_mask)
-
-
 
     def save_mask_to_geotiff(self, raster=None, filename_prefix=None):
         """
