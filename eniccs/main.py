@@ -79,7 +79,6 @@ def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
     mask_obj.maskdata = masklist
 
 
-
 def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     """
     This function extends the original cloud shadow mask.
@@ -157,7 +156,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
 
 # overall wrapper
 
-def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, percentile=75, return_mask_obj=False):
+def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, contamination: float = 0.25, percentile: int = 75, num_samples: int = 3000, n_jobs=-1, return_mask_obj=False, smooth_output=True):
     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks,
     refines them, trains a PLS-DA model and classifies the image.
     after postprocessing the results are saved as new rasters.
@@ -175,16 +174,16 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
     spectral_image_obj = HsImage(dir_path)
 
     # load masks
-    mask_obj = Mask(dir_path)
+    mask_obj = Mask(dir_path, num_samples=num_samples)
 
     # transfer nodata mask to mask object
-    transfer_nodata_to_mask(mask_obj, spectral_image_obj)
+    transfer_nodata_to_mask(mask_obj, spectral_image_obj) # TODO: check if it can be removed
 
     # refine cloud and cloud shadow masks
     refine_ccs_masks(spectral_image_obj, mask_obj)
 
     # classify image
-    mask_obj, VIP_df = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=plot_bool, percentile=percentile)
+    mask_obj, VIP_df = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=plot_bool, num_samples=num_samples, contamination=contamination, percentile=percentile, n_jobs=n_jobs, smooth_output=smooth_output)
 
     if save_output:
         filename_Cloud = mask_obj.datatake_name + '_EnICCS_CLOUD'
@@ -210,7 +209,7 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
     """
 
 
-    print('Refining cloud and cloud shadow masks with spectral indices')
+    # print('Refining cloud and cloud shadow masks with spectral indices')
     # improve cloud mask over land
     improve_cloud_mask_over_land(spectral_image_obj, mask_obj)
 
@@ -235,7 +234,7 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
 
 # classification wrapper
 
-def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile = 75, plot_bool=False):
+def classify_image(spectral_image_obj, mask_obj, num_samples, percentile, contamination=None,  auto_optimize=False, plot_bool=False, smooth_output=True, n_jobs=-1):
     """
     This function is a wrapper for the classification of the hyperspectral image using a PLS-DA model.
     The model is trained with the refined cloud and cloud shadow masks and the hyperspectral image.
@@ -262,15 +261,15 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     labeled_pixels, labels = get_pixellabels(mask_obj.classification_mask, hyperspectral_2D)
 
     # balance classes
-    balanced_pixels, balanced_labels = balance_classes(labeled_pixels, labels)
+    balanced_pixels, balanced_labels = balance_classes(labeled_pixels, labels, num_samples=num_samples)
 
     # remove outliers
-    balanced_pixels, balanced_labels = outlier_removal(balanced_pixels, balanced_labels)
+    balanced_pixels, balanced_labels = outlier_removal(balanced_pixels, balanced_labels, contamination=contamination)
 
     # split data
     X_train, X_test, y_train, y_test = split_data(balanced_pixels, balanced_labels)
 
-    pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize, plot_bool=plot_bool)
+    pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize, plot_bool=plot_bool, n_jobs=n_jobs)
 
     # get VIP scores
     VIP_df = get_VIP(pls_da)
@@ -282,7 +281,7 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
     # attach to mask object
     mask_obj.validation_report = val_report
 
-    print('Predicting on image...')
+    # print('Predicting on image...')
 
     # predict on image
     mask_obj.predicted_mask = predict_on_image(spectral_image_obj.image, pls_da)
@@ -306,9 +305,9 @@ def classify_image(spectral_image_obj, mask_obj, auto_optimize=False, percentile
 
     # postprocess predictions
     mask_obj.new_cloud_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask, structure_size=3,
-                                                                 buffer_size=1)
+                                                                 buffer_size=1, neutral_smooth=smooth_output)
     mask_obj.new_cloudshadow_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask, structure_size=3,
-                                                                       buffer_size=1)
+                                                                       buffer_size=1, neutral_smooth=smooth_output)
     # reconciling cloud and cloud shadow masks, favoring cloud mask
     mask_obj.new_cloudshadow_mask[mask_obj.new_cloud_mask == 1] = 0
 
