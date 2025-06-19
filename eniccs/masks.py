@@ -195,7 +195,7 @@ class Mask:
         formatted_mask = np.where(formatted_mask == 2, 1, formatted_mask) # water
         formatted_mask = np.where(formatted_mask == 3, 2, formatted_mask) # cloud
         formatted_mask = np.where(formatted_mask == 4, 3, formatted_mask) # cloud shadow
-        #print("i was called, the unique values are: ", np.unique(formatted_mask, return_counts=True))
+
         self.classification_mask = formatted_mask
 
     # def prediction_postprocessing(self, binary_mask, structure_size=4, buffer_size=2):
@@ -210,7 +210,6 @@ class Mask:
     #     structure = np.ones((1, structure_size, structure_size))
     #     closed_mask = binary_closing(mask_padded, structure=structure)
     #     final_mask = binary_opening(closed_mask, structure=structure)
-    #     # print('done')
     #     return final_mask
 
     def prediction_postprocessing(self, binary_mask, structure_size=2, buffer_size=1, neutral_smooth=True): # TODO whats up with buffer size?
@@ -237,7 +236,6 @@ class Mask:
 
         # remove noise
         if neutral_smooth:
-            print("Applying neutral smoothing to the predicted mask.")
             #binary_mask = binary_erosion(binary_mask, iterations=1)
             mask_padded = binary_dilation(binary_mask, iterations=buffer_size)
             structure = np.ones((structure_size, structure_size))
@@ -339,7 +337,7 @@ class Mask:
 
         return touch
 
-    def _modify_cloud_shadows_based_on_centroid_distance(self, percentile='auto', plot_bool=False):
+    def _modify_cloud_shadows_based_on_centroid_distance(self, percentile=0.80, verbose=False, plot=False):
         """
         Approximates cloud-cloud shadow association based on the distance between cloud and shadow centroids.
         The distance threshold is calculated based on the specified percentile of the nearest neighbor distances
@@ -347,7 +345,8 @@ class Mask:
         Updates new_cloud_mask and new_cloudshadow_mask in place.
 
         :param percentile: percentile of the nearest neighbor distances to use as threshold, 'Auto' for automatic calculation
-        :param plot_bool: boolean, whether to plot the distance histogram
+        :param plot: boolean, whether to plot the distance histogram
+        :param verbose: boolean, whether to print the number of modified cloud shadows
         """
         cloud_mask = self.new_cloud_mask
         cloud_shadow_mask = self.new_cloudshadow_mask
@@ -404,13 +403,13 @@ class Mask:
             if not touching_cloud and min_distance > threshold:
                 result_mask[shadow_region] = 3
                 num_modified += 1
+        if verbose:
+            print(f'Total cloud shadows selected for deletion: {num_modified}')
 
-        print(f'Total cloud shadows selected for deletion: {num_modified}')
-
-        if plot_bool:
+        if plot:
             plt.hist(distances, bins=20, edgecolor='black')
-            plt.axvline(x=threshold, color='r', linestyle='--')
-            plt.title(f'Distribution of Shadow Distances to Nearest Cloud Centroid\nThreshold: {threshold}')
+            # plt.axvline(x=threshold, color='r', linestyle='--')
+            plt.title(f'Distribution of Shadow Distances to Nearest Cloud Centroid')
             plt.xlabel('Distance to nearest cloud centroid')
             plt.ylabel('Frequency')
             plt.show()

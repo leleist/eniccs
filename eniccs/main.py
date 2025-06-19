@@ -155,19 +155,80 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     # buffer water mask to exclude coastal areas due to high missclassification rate in original data
 
 # overall wrapper
+def run_eniccs(
+        dir_path: str,
+        save_output: bool = True,
+        return_mask_obj: bool = False,
+        auto_optimize: bool = False,
+        verbose: bool = False,
+        plot: bool = False,
+        smooth_output: bool = True,
+        contamination: float = 0.25,
+        percentile: int = 80,
+        num_samples: int = 3000,
+        n_jobs: int = -1,
+):
+    """
+    Main wrapper for the EnICCS pipeline for improving EnMAP's operational cloud and cloud shadow masks.
 
-def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False, contamination: float = 0.25, percentile: int = 75, num_samples: int = 3000, n_jobs=-1, return_mask_obj=False, smooth_output=True):
-    """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks,
-    refines them, trains a PLS-DA model and classifies the image.
-    after postprocessing the results are saved as new rasters.
+    Loads hyperspectral image and masks (cloud, cloud shadow, land, water, nodata), refines them, trains a PLS-DA model,
+    classifies C/CS, and postprocesses the masks with physical constraints.
 
-    param dir_path: str, path to the directory containing the geotiffs as provided by the data provider
-    param save_output: bool, if True the output masks are saved to file
-    param auto_optimize: bool, if True the number of components for the PLS-DA model is optimized. If False, the number of components is set to 10 (default).
-    param plot_bool: bool, if True plots are shown during processing
-    param return_mask_obj: bool, if True the final EnICCS mask object is returned. Default is False.
+    Parameters
+    ----------
+    dir_path : str
+        Path to the directory containing the geotiffs as provided by the data provider.
+        Naming must follow operatinal convention as stated in DLR EnMAP documentation.
+    save_output : bool, default=True
+        Whether to save the output masks to file as two new files.
+    return_mask_obj : bool, default=False
+        Whether to return the final EnICCS mask object.
+    auto_optimize : bool, default=False
+        Whether to optimize the number of components for the PLS-DA model automatically with F1-score
+        saturation curve fitting.
+        If False, uses 10 components.
+    verbose : bool, default=False
+        Whether to print progress information during processing.
+    plot : bool, default=False
+        Whether to generate diagnostic plots during processing.
+         - PLS-DA latent variable x F1-score curve (if auto_optimize=True)
+         - postprocessing cloud to shadow distance plot histogram (to determine percentile threshold)
+    smooth_output : bool, default=True
+        Whether to apply smoothing to the output masks.
+        This is done with image morphological operations, configured to retain initial mask area.
+        Itsgenerally recommended to cover C/CS corners/edges/Indentations which are high uncertainty areas.
+    contamination : float, default=0.25
+        Proportion of outliers in the dataset for outlier detection with sklearn LOF.
+        Must be in the range (0, 0.5].
+    percentile : int, default=80
+        Percentile threshold used for detecting missclassified cloud shadows due to unusual cloud to shadow distance.
+        High percentile = accepting more FPs, low percentile = accepting more FNs.
+        This depends on the scenes cloud formation processes, types and structure.
+        The diagnostic plot can help
+    num_samples : int, default=3000
+        Number of samples to use for training the classification model.
+        the default (3000) is conservative. low values first deteriorate model performance, for cloud shadows
+        due to higher spectral variability.
+    n_jobs : int, default=-1
+        Number of parallel jobs to run. -1 --> all processors.
 
-    return mask_obj: updated eniccs Mask object
+    Returns
+    -------
+    mask_obj : Mask or None
+        The updated cloud and cloud shadow masks within a mask-class object if `return_mask_obj` is True,
+        otherwise None.
+
+    Notes
+    -----
+    This pipeline was developed and optimized for densely vegetated surfaces of tropical western Kenya.
+    If your AOI has differing surface characteristics, changes may be necessary to yield satisfactory results.
+    First option: Try to optimize the pipeline parameters within this function.
+    Second option: Adapt mask refinement functions (spectral indices and/or thresholds to your target area)
+
+    For details, we refer to the accompanying publication (currently under review) and the GitHub repository:
+    Leist et al. (2025). Evaluation and Improvement of Enmap's Cloud and Cloud-Shadow Masks with
+    Machine Learning – an Application in Tropical Western Kenya, SSRN,
+    preprint at: https://dx.doi.org/10.2139/ssrn.5272700
     """
 
     # load hyperspectral image
@@ -177,24 +238,80 @@ def run_eniccs(dir_path, save_output=True, auto_optimize=False, plot_bool=False,
     mask_obj = Mask(dir_path, num_samples=num_samples)
 
     # transfer nodata mask to mask object
-    transfer_nodata_to_mask(mask_obj, spectral_image_obj) # TODO: check if it can be removed
+    transfer_nodata_to_mask(mask_obj, spectral_image_obj)
 
     # refine cloud and cloud shadow masks
     refine_ccs_masks(spectral_image_obj, mask_obj)
 
     # classify image
-    mask_obj, VIP_df = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, plot_bool=plot_bool, num_samples=num_samples, contamination=contamination, percentile=percentile, n_jobs=n_jobs, smooth_output=smooth_output)
+    mask_obj, VIP_df = classify_image(
+        spectral_image_obj,
+        mask_obj,
+        auto_optimize=auto_optimize,
+        verbose=verbose,
+        num_samples=num_samples,
+        contamination=contamination,
+        percentile=percentile,
+        n_jobs=n_jobs,
+        smooth_output=smooth_output,
+        plot=plot
+    )
 
     if save_output:
-        filename_Cloud = mask_obj.datatake_name + '_EnICCS_CLOUD'
-        filename_CloudShadow = mask_obj.datatake_name + '_EnICCS_CLOUDSHADOW'
+        filename_cloud = mask_obj.datatake_name + '_EnICCS_CLOUD'
+        filename_cloudshadow = mask_obj.datatake_name + '_EnICCS_CLOUDSHADOW'
 
-        mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix=filename_Cloud)
-        mask_obj.save_mask_to_geotiff(mask_obj.new_cloudshadow_mask, filename_prefix=filename_CloudShadow)
-
+        mask_obj.save_mask_to_geotiff(
+            mask_obj.new_cloud_mask,
+            filename_prefix=filename_cloud
+        )
+        mask_obj.save_mask_to_geotiff(
+            mask_obj.new_cloudshadow_mask,
+            filename_prefix=filename_cloudshadow
+        )
 
     if return_mask_obj:
         return mask_obj
+
+## def run_eniccs(dir_path, save_output=True, auto_optimize=False, verbose=False, plot=False, contamination: float = 0.25, percentile: int = 75, num_samples: int = 3000, n_jobs=-1, return_mask_obj=False, smooth_output=True):
+##     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks,
+##     refines them, trains a PLS-DA model and classifies the image.
+##     after postprocessing the results are saved as new rasters.
+##
+##     param dir_path: str, path to the directory containing the geotiffs as provided by the data provider
+##     param save_output: bool, if True the output masks are saved to file
+##     param auto_optimize: bool, if True the number of components for the PLS-DA model is optimized. If False, the number of components is set to 10 (default).
+##     param verbose: print progress
+##     param return_mask_obj: bool, if True the final EnICCS mask object is returned. Default is False.
+##
+##     return mask_obj: updated eniccs Mask object
+##     """
+##
+##     # load hyperspectral image
+##     spectral_image_obj = HsImage(dir_path)
+##
+##     # load masks
+##     mask_obj = Mask(dir_path, num_samples=num_samples)
+##
+##     # transfer nodata mask to mask object
+##     transfer_nodata_to_mask(mask_obj, spectral_image_obj) # TODO: check if it can be removed
+##
+##     # refine cloud and cloud shadow masks
+##     refine_ccs_masks(spectral_image_obj, mask_obj)
+##
+##     # classify image
+##     mask_obj, VIP_df = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, verbose=verbose, num_samples=num_samples, contamination=contamination, percentile=percentile, n_jobs=n_jobs, smooth_output=smooth_output, plot=plot)
+##
+##     if save_output:
+##         filename_Cloud = mask_obj.datatake_name + '_EnICCS_CLOUD'
+##         filename_CloudShadow = mask_obj.datatake_name + '_EnICCS_CLOUDSHADOW'
+##
+##         mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix=filename_Cloud)
+##         mask_obj.save_mask_to_geotiff(mask_obj.new_cloudshadow_mask, filename_prefix=filename_CloudShadow)
+##
+##
+##     if return_mask_obj:
+##         return mask_obj
 
 
 
@@ -234,7 +351,7 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
 
 # classification wrapper
 
-def classify_image(spectral_image_obj, mask_obj, num_samples, percentile, contamination=None,  auto_optimize=False, plot_bool=False, smooth_output=True, n_jobs=-1):
+def classify_image(spectral_image_obj, mask_obj, num_samples, percentile, contamination=None,  auto_optimize=False, verbose=False, plot=False, smooth_output=True, n_jobs=-1):
     """
     This function is a wrapper for the classification of the hyperspectral image using a PLS-DA model.
     The model is trained with the refined cloud and cloud shadow masks and the hyperspectral image.
@@ -244,7 +361,7 @@ def classify_image(spectral_image_obj, mask_obj, num_samples, percentile, contam
     param mask_obj: eniccs Mask object
     param auto_optimize: bool, if True the number of components for the PLS-DA model is optimized.
     If False, the number of components is set to 10 (default).
-    param plot_bool: bool, if True plots are shown during processing
+    param verbose: print progress
 
     return mask_obj: updated eniccs Mask object
     """
@@ -269,14 +386,14 @@ def classify_image(spectral_image_obj, mask_obj, num_samples, percentile, contam
     # split data
     X_train, X_test, y_train, y_test = split_data(balanced_pixels, balanced_labels)
 
-    pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize, plot_bool=plot_bool, n_jobs=n_jobs)
+    pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize, verbose=verbose, plot=plot, n_jobs=n_jobs)
 
     # get VIP scores
     VIP_df = get_VIP(pls_da)
     mask_obj.VIP_scores = VIP_df
 
     # get validation report
-    val_report = get_validation_report(X_test, y_test, pls_da, format=True)
+    val_report = get_validation_report(X_test, y_test, pls_da, format=True, verbose=verbose)
 
     # attach to mask object
     mask_obj.validation_report = val_report
@@ -298,7 +415,7 @@ def classify_image(spectral_image_obj, mask_obj, num_samples, percentile, contam
     mask_obj._resolve_cs_water_confusion()
 
 
-    mask_obj._modify_cloud_shadows_based_on_centroid_distance(percentile=percentile, plot_bool=plot_bool) # 75
+    mask_obj._modify_cloud_shadows_based_on_centroid_distance(percentile=percentile, verbose=verbose, plot=plot) # 75
 
     # postprocess cloudshadow to remove missclassifications along water bodies
     mask_obj.reset_cs_coastal_pixels()

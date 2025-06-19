@@ -102,7 +102,6 @@ def balance_classes(labeled_pixels, labels, num_samples):
     balanced_labels = np.zeros(min_class_size * len(unique), dtype=int)
     for i, label in enumerate(unique):
         class_samples = labeled_pixels[labels == label, :]
-        print(f'Class {label} has {class_samples.shape[0]} samples and min_class_size is {min_class_size}')
         random_indices = np.random.choice(class_samples.shape[0], min_class_size, replace=False)
         balanced_pixels[i * min_class_size:(i + 1) * min_class_size, :] = class_samples[random_indices, :]
         balanced_labels[i * min_class_size:(i + 1) * min_class_size] = label
@@ -166,7 +165,7 @@ def f1_weighted_scorer(model, X, y_test):
     return f1_score(true_y, predicted_y, average='weighted')
 
 
-def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bool=False):
+def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot=False):
     """
     Finds the optimal number of components by fitting a logistic curve to the F1 scores and extracting n_comp
     closest to the saturation point.
@@ -174,7 +173,7 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bo
 
     :param n_comp_list: list of possible number of components
     :param f1_scores_list: list of F1 scores corresponding to the number of components
-    :param plot_bool: boolean to plot the saturation curve fitting
+    :param plot: boolean to plot the saturation curve fitting
 
     :return: optimal number of components, corresponding F1 score
     """
@@ -228,16 +227,10 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bo
     # TODO: add fitted line quality evaluation with a criterion on pcov
 
 
-    if plot_bool: # TODO: make this plot more concise (remove at least 2 dots, move value prints into the plot )
+    if plot:
         plt.scatter(x_data, Y_data, label='Training F1 scores')
         plt.plot(x_data, logistic(x_data, *popt), label='Fitted curve')
-        # abline the saturation point on y axis
         plt.axhline(y=saturation_point, color='r', linestyle='--', label='Saturation level')
-        # plot the saturation point on the curve
-        #plt.scatter(closest_data_point[0], closest_data_point[1], color='r', label='Closest data Point')
-        # plot the point with the max F1 score
-        #plt.scatter(x_data[max_F1_index], Y_data[max_F1_index], color='g', label='Max F1-score')
-        # plt.scatter(x_data[closest_index_percent], Y_data[closest_index_percent], color='y', label='Closest Data Point within 0.5% of saturation level')
         plt.scatter(x_data[closest_index_range_value_range], Y_data[closest_index_range_value_range], facecolors='none', edgecolors='b', linewidths=2, s=150, label='Closest Data Point')
         plt.xlabel('Number of latent variables')
         plt.ylabel('Training F1 scores')
@@ -252,7 +245,7 @@ def find_optimal_ncomp_via_saturation_point(n_comp_list, f1_scores_list, plot_bo
 
     return x_data[closest_index_range_value_range], Y_data[closest_index_range_value_range]
 
-def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_bool=False, n_jobs=-1):
+def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot=False, verbose=False, n_jobs=-1):
     """
     Builds a PLS-DA model with the optimal number of components.
     Integrates auto optimization argument.
@@ -260,21 +253,23 @@ def PLSDA_model_builder(X_train, y_train, auto_optimize = False, plot_bool=False
     :param X_train: training data
     :param y_train: training labels
     :param auto_optimize: boolean to optimize the number of components
-    :param plot_bool: boolean to plot the saturation curve fitting
+    :param plot: boolean to plot the saturation curve fitting
 
     :return: pls_da model object
     """
 
     if auto_optimize:
         # cross validate to find optimal number of components
-        print('Optimizing number of components for PLS-DA model')
-        _, _, pls_da = CV_optimize_n_components(X_train, y_train, max_components=20, cv=10, njobs=n_jobs, plot_bool=plot_bool)
+        if verbose:
+            print('Optimizing number of components for PLS-DA model')
+
+        _, _, pls_da = CV_optimize_n_components(X_train, y_train, max_components=20, cv=10, njobs=n_jobs, plot=plot, verbose=verbose)
     else:
         pls_da = multiclass_plsda(X_train, y_train, n_components=10)
 
     return pls_da
 
-def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1, plot_bool=False):
+def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1, verbose=False, plot=False):
     """
     Applies cross-validation to find the optimal number of components for the PLS-DA model.
     Returns the F1 scores for each number of components and the optimal number of components.
@@ -284,7 +279,7 @@ def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1, 
     :param max_components: maximum number of components to test
     :param cv: number of cross-validation folds
     :param njobs: number of parallel jobs (default = -1)
-    :param plot_bool: boolean to plot the F1 score vs number of components
+    :param plot: boolean to plot the F1 score vs number of components
     """
 
     n_components_list = list(range(2, max_components))
@@ -301,16 +296,10 @@ def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1, 
 
         f1_scores.append(scores.mean())
 
-    # plot the f1 scores against the number of components
-    # fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-    # ax.plot(n_components_list, f1_scores, marker='o')
-    # ax.set_title('F1 score vs number of components')
-    # ax.set_xlabel('Number of components')
-    # ax.set_ylabel('F1 score')
-    # plt.show()
 
-    optimal_n_components, cooresponding_F1score = find_optimal_ncomp_via_saturation_point(n_components_list, f1_scores, plot_bool=plot_bool)
-    print(f'Optimal number of components: {optimal_n_components}, from saturation point analysis with F1 score: {max(f1_scores):.2f}')
+    optimal_n_components, cooresponding_F1score = find_optimal_ncomp_via_saturation_point(n_components_list, f1_scores, plot=plot)
+    if verbose:
+        print(f'Optimal number of components: {optimal_n_components}, from saturation point analysis with CV-F1 score: {max(f1_scores):.2f}')
 
     # build the final model with the optimal number of components
     pls_da = multiclass_plsda(X_train, y_train, optimal_n_components)
@@ -365,7 +354,7 @@ def predict_on_image(hyperspectral_image, pls_da_model):
     predicted_mask_image = predicted_mask.reshape(hyperspectral_image[0].shape)
     return predicted_mask_image
 
-def get_validation_report(X_test, y_test, pls_da_model, format=False):
+def get_validation_report(X_test, y_test, pls_da_model, format=False, verbose=False):
     """
     Generates a sklearn validation report/F1 Score for the final PLS-DA model.
     Just for reporting purposes.
@@ -374,7 +363,9 @@ def get_validation_report(X_test, y_test, pls_da_model, format=False):
     # get validation report
     y_pred = pls_da_predict(pls_da_model, X_test)
     f1_score_rd = np.round(f1_score(y_test, y_pred, average='weighted'), 2)
-    print('internal F1 score: ', f1_score_rd)
+
+    if verbose:
+        print('PLS-DA validation F1 score: ', f1_score_rd)
 
     if format:
         report = classification_report(y_test, y_pred, output_dict=True)
@@ -409,7 +400,8 @@ def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
 
     # cross validate to find optimal number of components
     f1_scores, optimal_n_components, pls_da = CV_optimize_n_components(X_train, y_train, max_components, cv=cv, njobs=njobs) # TODO: is the triple return even needed anymore?
-    print(type(pls_da), 'before vip')
+    # print(type(pls_da), 'before vip')
+
     # get VIP scores
     VIP_df = get_VIP(pls_da)
 
