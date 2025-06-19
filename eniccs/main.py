@@ -4,25 +4,54 @@ from .classification import (reshape_image_to_table, get_pixellabels, balance_cl
 from .masks import Mask
 from .hs_image import HsImage
 
-def transfer_nodata_to_mask(mask_obj, spectral_image_obj):
+
+def _transfer_nodata_to_mask(mask_obj: 'Mask',
+    spectral_image_obj: 'HsImage'
+) -> None:
     """
-    This function transfers the nodata mask (bad pixels) to the mask obj.
-    param mask_obj: eniccs Mask object
-    param spectral_image_obj: eniccs HsImage object
+    Transfer no-data pixels from hyperspectral image to mask object.
+
+    Parameters
+    ----------
+    mask_obj : Mask
+        EnICCS mask object
+    spectral_image_obj : HsImage
+        EnICCS hyperspectral image object
+
+    Returns
+    -------
+    None
+        Function sets mask_obj.nodata_mask in-place.
     """
     nodata_mask = np.zeros_like(spectral_image_obj.image[0, :, :])
     nodata_mask[spectral_image_obj.image[0, :, :] == spectral_image_obj.no_data_value] = 1
     nodata_mask = np.expand_dims(nodata_mask, axis=0)
     mask_obj.nodata_mask = nodata_mask
 
-# find undetected clouds and update cloud mask
-def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
-    """
-    This function extends the original cloud mask via the  universal CloudIndex (CI) after Zhai et al. 2018, ISPRS
-    and the Cloud over Land Test (CLT). Undetected small clouds over land are detected and added to the cloud mask.
 
-    param spectral_image_obj: eniccs HsImage object
-    param mask_obj: eniccs Mask object
+# find undetected clouds and update cloud mask
+def improve_cloud_mask_over_land(
+        spectral_image_obj: 'HsImage',
+        mask_obj: 'Mask'
+) -> None:
+    """
+    Improve cloud detection over land using Cloud Index.
+
+    This function extends the original cloud mask by applying the  Cloud
+    Index (CI) from Zhai et al. 2018 (ISPRS) and the Cloud over Land Test (CLT)
+    to detect previously unidentified (small) clouds over land.
+
+    Parameters
+    ----------
+    spectral_image_obj : HsImage
+        EnICCS hyperspectral image object
+    mask_obj : Mask
+        EnICCS mask object
+
+    Returns
+    -------
+    None
+        Function modifies the mask_obj.mask_data in-place.
     """
     spectral_image = spectral_image_obj.image
     no_data = spectral_image_obj.no_data_value
@@ -61,7 +90,8 @@ def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
     band_47[band_47 < 0] = 0
 
     # calculate universal CloudIndex (CI) after Zhai et al. 2018, ISPRS
-    with np.errstate(divide='ignore', invalid='ignore'): # catching potential divide by zero error. Nas are handeled accordingly downstream
+    with np.errstate(divide='ignore',
+                     invalid='ignore'):  # catching potential divide by zero error. Nas are handeled accordingly downstream
         ci = (band_75 + 2 * band_153) / (band_6 + band_28 + band_47)
 
     # apply threshold to CI # TODO: the ree lines lewo are not used because ci_binary is never used later. Remove?
@@ -79,12 +109,28 @@ def improve_cloud_mask_over_land(spectral_image_obj, mask_obj):
     mask_obj.maskdata = masklist
 
 
-def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
+def improve_cloud_shadow_mask(
+        spectral_image_obj: 'HsImage',
+        mask_obj: 'Mask'
+) -> None:
     """
-    This function extends the original cloud shadow mask.
+    Improve cloud shadow detection using spectral indices and thresholding.
 
-    param spectral_image_obj: eniccs HsImage object
-    param mask_obj: eniccs Mask object
+    This function extends and refines the original cloud shadow mask by applying
+    a difference index (DI) based on NIR and Red bands, combined with water-land
+    discrimination to reduce false positives over water bodies.
+
+    Parameters
+    ----------
+    spectral_image_obj : HsImage
+        EnICCS hyperspectral image object.
+    mask_obj : Mask
+        EnICCS mask object containing the original cloud shadow mask.
+
+    Returns
+    -------
+    None
+        Function modifies the mask_obj.mask_data in-place.
     """
 
     spectral_image = spectral_image_obj.image
@@ -99,7 +145,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     band_29 = spectral_image[28, :, :]  # 550 nm, Green
 
     band_108 = band_108 * 0.0001
-    band_45  = band_45  * 0.0001
+    band_45 = band_45 * 0.0001
     band_3 = band_3 * 0.0001
     band_29 = band_29 * 0.0001
 
@@ -117,7 +163,6 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     band_45[band_45 < 0] = 0
     band_3[band_3 < 0] = 0
     band_29[band_29 < 0] = 0
-
 
     # calculate difference index (2*NIR - Red) to increase the distance between cloud and cloud shadow.
     di = 2 * band_108 - band_45
@@ -138,7 +183,8 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     # mask_obj.apply_binary_opening(mask_index=2, structure_size=2)
     # extended_cloudshadow = binary_erosion(extended_cloudshadow, iterations=1)
 
-    water_land_mask = (band_45 > 0.8*band_29) # exploits logic of green hump in veg. spectrum. scaling down green allows
+    water_land_mask = (
+                band_45 > 0.8 * band_29)  # exploits logic of green hump in veg. spectrum. scaling down green allows
     # to group up light surfaces such as soil with vegetation while still being able to discriminate from water
     extended_cloudshadow = np.where(water_land_mask == 1, 0, extended_cloudshadow)
     extended_cloudshadow = np.expand_dims(extended_cloudshadow, axis=0)
@@ -153,6 +199,7 @@ def improve_cloud_shadow_mask(spectral_image_obj, mask_obj):
     # return water_land_mask, di_binary, extended_cloudshadow, original_cloudshadow # TODO: remove return values?
 
     # buffer water mask to exclude coastal areas due to high missclassification rate in original data
+
 
 # overall wrapper
 def run_eniccs(
@@ -172,7 +219,7 @@ def run_eniccs(
     Main wrapper for the EnICCS pipeline for improving EnMAP's operational cloud and cloud shadow masks.
 
     Loads hyperspectral image and masks (cloud, cloud shadow, land, water, nodata), refines them, trains a PLS-DA model,
-    classifies C/CS, and postprocesses the masks with physical constraints.
+    classifies CCS, and postprocesses the masks with physical constraints.
 
     Parameters
     ----------
@@ -238,7 +285,7 @@ def run_eniccs(
     mask_obj = Mask(dir_path, num_samples=num_samples)
 
     # transfer nodata mask to mask object
-    transfer_nodata_to_mask(mask_obj, spectral_image_obj)
+    _transfer_nodata_to_mask(mask_obj, spectral_image_obj)
 
     # refine cloud and cloud shadow masks
     refine_ccs_masks(spectral_image_obj, mask_obj)
@@ -273,58 +320,28 @@ def run_eniccs(
     if return_mask_obj:
         return mask_obj
 
-## def run_eniccs(dir_path, save_output=True, auto_optimize=False, verbose=False, plot=False, contamination: float = 0.25, percentile: int = 75, num_samples: int = 3000, n_jobs=-1, return_mask_obj=False, smooth_output=True):
-##     """ This function is the main wrapper for the ENICCS pipeline. It loads the hyperspectral image and masks,
-##     refines them, trains a PLS-DA model and classifies the image.
-##     after postprocessing the results are saved as new rasters.
-##
-##     param dir_path: str, path to the directory containing the geotiffs as provided by the data provider
-##     param save_output: bool, if True the output masks are saved to file
-##     param auto_optimize: bool, if True the number of components for the PLS-DA model is optimized. If False, the number of components is set to 10 (default).
-##     param verbose: print progress
-##     param return_mask_obj: bool, if True the final EnICCS mask object is returned. Default is False.
-##
-##     return mask_obj: updated eniccs Mask object
-##     """
-##
-##     # load hyperspectral image
-##     spectral_image_obj = HsImage(dir_path)
-##
-##     # load masks
-##     mask_obj = Mask(dir_path, num_samples=num_samples)
-##
-##     # transfer nodata mask to mask object
-##     transfer_nodata_to_mask(mask_obj, spectral_image_obj) # TODO: check if it can be removed
-##
-##     # refine cloud and cloud shadow masks
-##     refine_ccs_masks(spectral_image_obj, mask_obj)
-##
-##     # classify image
-##     mask_obj, VIP_df = classify_image(spectral_image_obj, mask_obj, auto_optimize=auto_optimize, verbose=verbose, num_samples=num_samples, contamination=contamination, percentile=percentile, n_jobs=n_jobs, smooth_output=smooth_output, plot=plot)
-##
-##     if save_output:
-##         filename_Cloud = mask_obj.datatake_name + '_EnICCS_CLOUD'
-##         filename_CloudShadow = mask_obj.datatake_name + '_EnICCS_CLOUDSHADOW'
-##
-##         mask_obj.save_mask_to_geotiff(mask_obj.new_cloud_mask, filename_prefix=filename_Cloud)
-##         mask_obj.save_mask_to_geotiff(mask_obj.new_cloudshadow_mask, filename_prefix=filename_CloudShadow)
-##
-##
-##     if return_mask_obj:
-##         return mask_obj
-
-
-
 
 # mask refinement and classification preparation wrapper
 def refine_ccs_masks(spectral_image_obj, mask_obj):
     """
-    This function is a wrapper for refining the cloud and cloud shadow masks to improve the suitability for ML training
+    This function is a wrapper for refining the cloud and cloud shadow masks to improve the suitability for ML training.
+    Cloud and cloud sadow masks are refined with spectral indices and thresholding.
 
-    param spectral_image_obj: eniccs HsImage object
-    param mask_obj: eniccs Mask object
+    Note:
+    This is the main access point for customization to surfaces with differing spectral characteristics.
+
+    Parameters
+    ----------
+    spectral_image_obj : HsImage
+        EnICCS Hyperspectral image object.
+    mask_obj : Mask
+        EnICCS mask object.
+
+    Returns
+    -------
+    None
+        Function modifies the mask_obj in-place.
     """
-
 
     # print('Refining cloud and cloud shadow masks with spectral indices')
     # improve cloud mask over land
@@ -337,7 +354,7 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
     mask_obj.combine_masks()
 
     # buffer water mask to remove areas of high uncertainty
-    mask_obj.buffer_water_mask(buffer_size=3) # TODO: Check if still applicable
+    mask_obj.buffer_water_mask(buffer_size=3)  # TODO: Check if still applicable
 
     # format mask for classification
     mask_obj.format_mask_for_classification()
@@ -350,26 +367,57 @@ def refine_ccs_masks(spectral_image_obj, mask_obj):
 
 
 # classification wrapper
-
-def classify_image(spectral_image_obj, mask_obj, num_samples, percentile, contamination=None,  auto_optimize=False, verbose=False, plot=False, smooth_output=True, n_jobs=-1):
+def classify_image(
+        spectral_image_obj: 'HsImage',
+        mask_obj: 'Mask',
+        num_samples: int,
+        percentile: int,
+        contamination: float = None,
+        auto_optimize: bool = False,
+        verbose: bool = False,
+        plot: bool = False,
+        smooth_output: bool = True,
+        n_jobs: int = -1,
+) -> tuple['Mask', 'DataFrame']:
     """
-    This function is a wrapper for the classification of the hyperspectral image using a PLS-DA model.
-    The model is trained with the refined cloud and cloud shadow masks and the hyperspectral image.
-    The model is used to predict on the image and the results are postprocessed.
+    Classify hyperspectral image using PLS-DA model for cloud and cloud shadow detection.
 
-    param spectral_image_obj: eniccs HsImage object
-    param mask_obj: eniccs Mask object
-    param auto_optimize: bool, if True the number of components for the PLS-DA model is optimized.
-    If False, the number of components is set to 10 (default).
-    param verbose: print progress
+    This function trains a Partial Least Squares Discriminant Analysis (PLS-DA) model
+    using refined cloud and cloud shadow masks, applies the model the
+     HSimage, and postprocesses the results to generate final CCS masks.
 
-    return mask_obj: updated eniccs Mask object
+    Parameters
+    ----------
+    spectral_image_obj : HsImage
+        EnICCS hyperspectral image object.
+    mask_obj : Mask
+        EnICCS mask object with refined cloud and cloud shadow masks for training.
+    num_samples : int
+        Number of samples to use for training the classification model.
+    percentile : int
+        Percentile threshold used for cloud to shadow centroid distance based object selection.
+    contamination : float, optional
+        Proportion of outliers to remove during preprocessing with sklearn LOF.
+    auto_optimize : bool, default=False
+        Whether to optimize the number of components for the PLS-DA model automatically.
+        If False, uses 10 components.
+    verbose : bool, default=False
+        Whether to print progress information.
+    plot : bool, default=False
+        Whether to generate diagnostic plots during processing.
+    smooth_output : bool, default=True
+        Whether to apply smoothing during postprocessing of predictions. Generally recommended.
+    n_jobs : int, default=-1
+        Number of parallel jobs to run. -1 --> all processors.
+
+    Returns
+    -------
+    mask_obj : Mask
+        Updated EnICCS mask object with new cloud and cloud shadow masks.
+    VIP_df : DataFrame
+        Variable Importance in Projection (VIP) scores i.e. feature importance from the PLS-DA model.
+
     """
-
-    # print('Training PLS-DA model with refined cloud and cloud shadow masks')
-
-    # mask out no data pixels
-    # mask_obj.classification_mask[mask_obj.no_data_mask == 1] = 0 # TODO Remove?
 
     # reshape image to table
     hyperspectral_2D = reshape_image_to_table(spectral_image_obj.image)
@@ -386,7 +434,8 @@ def classify_image(spectral_image_obj, mask_obj, num_samples, percentile, contam
     # split data
     X_train, X_test, y_train, y_test = split_data(balanced_pixels, balanced_labels)
 
-    pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize, verbose=verbose, plot=plot, n_jobs=n_jobs)
+    pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize, verbose=verbose, plot=plot,
+                                 n_jobs=n_jobs)
 
     # get VIP scores
     VIP_df = get_VIP(pls_da)
@@ -414,8 +463,7 @@ def classify_image(spectral_image_obj, mask_obj, num_samples, percentile, contam
     # update water mask to remove falsely classified water pixels in native water mask
     mask_obj._resolve_cs_water_confusion()
 
-
-    mask_obj._modify_cloud_shadows_based_on_centroid_distance(percentile=percentile, verbose=verbose, plot=plot) # 75
+    mask_obj._modify_cloud_shadows_based_on_centroid_distance(percentile=percentile, verbose=verbose, plot=plot)  # 75
 
     # postprocess cloudshadow to remove missclassifications along water bodies
     mask_obj.reset_cs_coastal_pixels()

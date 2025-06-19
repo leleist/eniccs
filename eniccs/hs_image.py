@@ -2,11 +2,13 @@ import glob
 import rasterio
 import matplotlib.pyplot as plt
 
+
 class HsImage:
     """
     HsImage class
     creates a convenient object from a hyperspectral image cube.
     """
+
     def __init__(self, dir_path, filename_pattern='-SPECTRAL_IMAGE', extensions=['TIF', 'tif', 'TIFF', 'tiff']):
         self.image = None
         self.dir_path = dir_path
