@@ -455,5 +455,5 @@ class Mask:
 
         with rasterio.open(output_path, 'w', driver=self.profile['driver'], height=self.mask_data[1].shape[1],
                            width=self.mask_data[1].shape[2], count=1, dtype=str(self.profile['dtype']),
-                           crs=self.profile['crs'], transform=self.profile['transform']) as dst:
+                           crs=self.profile['crs'], transform=self.profile['transform'], compression='zstd') as dst:
             dst.write(raster_to_save, 1)
