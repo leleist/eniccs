@@ -59,16 +59,16 @@ Just provide the directory path of the EnMAP L2A data on a tile-by-tile basis, i
 ```python
 from eniccs import run_eniccs
 
-# simple call with default parameters
 dir_path = r"path/to/your/EnMAP/TIFFS"  
 
+# simple call with default parameters
 run_eniccs(dir_path)
 
 # new cloud and cloudshadow masks will be saved to "dir_path"
 ```
 **Please note:** EnICCS currently accepts two file types, TIFF and BSQ, with common extensions (.TIFF, .TIF, .tiff, .tif, .BSQ, .bsq)
 
-### Note on Transferability
+### Note on Transferability:
 EnICCS was developed and tested on EnMAP scenes over smallholder areas of tropical western Kenya.
 Application to regions with differing surface characteristics may require adjustments. 
 The code structure allows for some optimization with available parameters and simple adaptation, leveraging expert 
