@@ -76,10 +76,8 @@ knowledge and/or visual inspection. For more details see the accompanying [paper
 
 ## Customization
 EnICCS has two points of contact for customization:
-1. Adjustment of various parameters of the `run_eniccs` function.
-2. Implementation level changes to adapt EnICCS to different surface characteristics.
 
-### 1. Parameter Optimization
+#### 1. Parameter Adjustments
 The following parameters can be adjusted when calling the `run_eniccs` function:
 ```python
 run_eniccs(
@@ -91,13 +89,13 @@ run_eniccs(
      plot: bool = False,                # plot informative plots
      smooth_output: bool = True,        # apply conservative morphological processing for smooting the output masks
      contamination: float = 0.25,       # contamination parameter for LOF outlier detection
-     percentile: int = 80,              # percentile for cloud-to-shadow matching routine
+     percentile: int = 80,              # percentile for cloud-to-shadow matching routine distance threshold
      num_samples: int = 3000,           # number of samples for PLS-DA training
      n_jobs: int = -1,                  # number of parallel jobs (CPU)
 )
 ```
 
-### 2. Implementation Level Changes
+#### 2. Implementation Level Changes
 The main module contains functions for mask refinement i.e. `improve_cloud_mask_over_land` and 
 `improve_cloud_shadow_mask` as well as a wrapper `refine_ccs_masks` that integrates the two prior functions into the 
 overall workflow.
@@ -122,8 +120,8 @@ Specifically regarding band indices and thresholds for different surface types (
 ## EnMAP Cloud and Cloud Shadow Benchmarking Dataset
 We provide the hand-drawn "gold standard" reference masks for five EnMAP scenes used in the accompanying [paper]() as a 
 benchmarking dataset.  
-See: 
-
+See:  
+For tile-wise performance metrics please consult the [paper]() Supplemental Information.
 
 ## Citation
 
