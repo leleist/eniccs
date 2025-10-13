@@ -15,16 +15,16 @@ setup(
         'scikit-image >=0.25.0',
     ],
     python_requires='>=3.11',
-    description='Improvement of cloud and cloudshadow detection in hyperspectral EnMAP images',
+    description='EnMAPs Improved Cloud and Cloud Shadows (EnICCS) masking pipeline',
     long_description=open('README.md').read(),
-    long_description_content_type='text/markdown',  # Format of the README file
+    long_description_content_type='text/markdown',
     author='Leander Leist',
-    author_email='science.leist@gmail.com',
+    author_email='leander.leist@geo.uni-marburg.de, science.leist@gmail.com',
     url='https://github.com/leleist/eniccs',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3.11',
+        'License :: OSI Approved :: Apache 2.0',
+        'Programming Language :: Python :: >= 3.11',
     ],
 )
