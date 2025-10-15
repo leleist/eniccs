@@ -134,8 +134,6 @@ Illustrations contain EnMAP data and modified EnMAP data © DLR [2023, 2024]. Al
 ## License
 This project is licensed under the **Apache 2.0** License - see the [LICENSE](LICENSE.txt) file for details.
 
-```
-
 
 
 
