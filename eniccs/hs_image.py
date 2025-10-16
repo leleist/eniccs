@@ -17,7 +17,6 @@ class HsImage:
         self.extensions = extensions
         self.profile = None
         self.no_data_value = None
-        self.metadata = None
 
         # test trough different extensions
         for ext in extensions:
