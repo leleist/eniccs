@@ -1,12 +1,19 @@
+"""
+The masks module contains the mask class which handles all processes that are only related to the
+QL masks themselves, such as loading, combining, buffering, formatting for classification, and
+postprocessing of predicted masks.
+"""
+
 import glob
 import os
 import rasterio
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import binary_dilation, binary_opening, binary_closing, binary_erosion
+from scipy.spatial import cKDTree
 from skimage.measure import label, regionprops
 from skimage.morphology import remove_small_holes
-from scipy.spatial import cKDTree
+
 
 class Mask:
     """
@@ -32,7 +39,11 @@ class Mask:
     """
     def __init__(self, dir_path, mask_patterns=None, num_samples=3000):
         if mask_patterns is None:
-            self.mask_patterns = dict(Classes='_CLASSES', Cloud='_CLOUD', Cloud_shadow='CLOUDSHADOW')
+            self.mask_patterns = {
+                'Classes': '_CLASSES',
+                'Cloud' :'_CLOUD',
+                'Cloud_shadow' :'CLOUDSHADOW'
+            }
         else:
             self.mask_patterns = mask_patterns
 
@@ -50,13 +61,13 @@ class Mask:
         self.new_cloud_mask = None
         self.new_cloudshadow_mask = None
         self.validation_report = None
-        self.VIP_scores = None
+        self.vip_scores = None
 
         # load all masks and combine them into a multiclass mask upon initialization
         self.load_masks()
 
         # check if cloud and cloud shadow masks contain enough pixels
-        self._check_CCS_presence()
+        self._check_ccs_presence()
 
 
     # function to load and collect all masks into a list
@@ -106,7 +117,7 @@ class Mask:
         cloudshadowmask = load_pattern(self.mask_patterns['Cloud_shadow'])
         self.mask_data.append(cloudshadowmask)
 
-    def _check_CCS_presence(self):
+    def _check_ccs_presence(self):
         """
         Checks if cloud and cloud shadow masks contain enough pixels/samples.
         """
@@ -130,11 +141,12 @@ class Mask:
         for i, mask in enumerate(self.mask_data): # start=1
             self.multiclass_mask[mask != 0] = i
 
-        # overwrite cloudshadow with water mask to address CS-Water confusion in original data for training
+        # overwrite CS with water mask to address CS-Water confusion in original data for training
         self.multiclass_mask = np.where(self.mask_data[2] == 2, 2, self.multiclass_mask)
 
 
-    # buffer water mask to exclude coastal areas due to high missclassification rate in original data
+    # buffer water mask to exclude coastal areas due to high missclassification rate of
+    # original data
     def buffer_water_mask(self, buffer_size=3):
         """
         Specifically handles the operational water mask as it often contains false positives for
@@ -181,7 +193,8 @@ class Mask:
         self.classification_mask = formatted_mask
 
 
-    def prediction_postprocessing(self, binary_mask, structure_size=2, buffer_size=1, neutral_smooth=True):
+    def prediction_postprocessing(self, binary_mask, structure_size=2, buffer_size=1,
+                                  neutral_smooth=True):
         """
         Postprocessing of the predicted mask to remove noise and smooth the output
         :param binary_mask: binary mask to be postprocessed
@@ -277,11 +290,11 @@ class Mask:
         :param labeled_clouds: labeled cloud mask (binary)
         :param labeled_shadows: labeled cloud shadow mask (binary)
 
-        :return: a boolean array where each shadow label/object is marked True if it touches a cloud.
+        :return: a boolean array where each shadow label/object is marked True if it touches a cloud
         """
 
-        cloud_border = (labeled_clouds > 0)
-        shadow_border = (labeled_shadows > 0)
+        cloud_border = labeled_clouds > 0
+        shadow_border = labeled_shadows > 0
 
         # Shift the cloud mask in all 8 directions and check for overlap with shadow mask
         touch = np.zeros_like(labeled_clouds, dtype=bool)
@@ -293,14 +306,16 @@ class Mask:
 
         return touch
 
-    def _modify_cloud_shadows_based_on_centroid_distance(self, percentile=0.80, verbose=False, plot=False):
+    def _modify_cloud_shadows_based_on_centroid_distance(self, percentile=0.80,
+                                                         verbose=False, plot=False):
         """
-        Approximates cloud-cloud shadow association based on the distance between cloud and shadow centroids.
-        The distance threshold is calculated based on the specified percentile of the nearest neighbor distances
-        and the ratio of cloud and cloud shadow pixels in the scene.
+        Approximates cloud-cloud shadow association based on the distance between cloud and
+        shadow centroids. The distance threshold is calculated based on the specified percentile
+        of the nearest neighbor distances and the ratio of cloud and cloud shadow pixels in the
+        scene.
         Updates new_cloud_mask and new_cloudshadow_mask in place.
 
-        :param percentile: percentile of the nearest neighbor distances to use as threshold, 'Auto' for automatic calculation
+        :param percentile: percentile of the nearest neighbor distances to use as threshold
         :param plot: boolean, whether to plot the distance histogram
         :param verbose: boolean, whether to print the number of modified cloud shadows
         """
@@ -341,7 +356,7 @@ class Mask:
             min_distance = distances[shadow_index]
 
             # Get the shadow region mask
-            shadow_region = (labeled_shadows == shadow_prop.label)
+            shadow_region = labeled_shadows == shadow_prop.label
 
             # Check if any part of the shadow is touching a cloud
             touching_cloud = np.any(touch_mask[shadow_region])
@@ -355,7 +370,7 @@ class Mask:
         if plot:
             plt.hist(distances, bins=20, edgecolor='black')
             # plt.axvline(x=threshold, color='r', linestyle='--')
-            plt.title(f'Distribution of Shadow Distances to Nearest Cloud Centroid')
+            plt.title('Distribution of Shadow Distances to Nearest Cloud Centroid')
             plt.xlabel('Distance to nearest cloud centroid')
             plt.ylabel('Frequency')
             plt.show()
@@ -405,7 +420,12 @@ class Mask:
         else:
             raster_to_save = raster
 
-        with rasterio.open(output_path, 'w', driver=self.profile['driver'], height=self.mask_data[1].shape[1],
-                           width=self.mask_data[1].shape[2], count=1, dtype=str(self.profile['dtype']),
-                           crs=self.profile['crs'], transform=self.profile['transform'], compression='zstd') as dst:
+        with rasterio.open(output_path, 'w', driver=self.profile['driver'],
+                           height=self.mask_data[1].shape[1],
+                           width=self.mask_data[1].shape[2],
+                           count=1,
+                           dtype=str(self.profile['dtype']),
+                           crs=self.profile['crs'],
+                           transform=self.profile['transform'],
+                           compression='zstd') as dst:
             dst.write(raster_to_save, 1)
