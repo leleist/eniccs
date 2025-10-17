@@ -21,7 +21,7 @@ class Mask:
     - transform: transform of the first loaded mask
     - datatake_name: name of the datatake in native naming convention, used for saving the
       EnICCS masks
-    - mask_data: list containing the loaded masks
+    - mask_data: list containing the loaded masks. Note: data herein will be modified inplace.
     - multiclass_mask: combined masks into one multiclass raster for processing
     - coastal_buffer: binary mask containing the buffered coastal pixels to handle areas commonly
       misclassified in native data
@@ -85,8 +85,9 @@ class Mask:
         # land and water mask
         classesmask = load_pattern(self.mask_patterns['Classes'])
         nodatamask = np.zeros(classesmask.shape)
-        nodatamask[classesmask == 3] = 1  # set background class to 1
-        self.mask_data.append(nodatamask)  # TODO: can it be replaced with self.nodata_mask?, where is it used?
+        nodatamask[classesmask == 3] = 1   # 3 is nodata value of the Classes mask file!
+        self.mask_data.append(nodatamask)
+        self.nodata_mask = nodatamask
 
         landmask = np.zeros(classesmask.shape)
         landmask[classesmask == 1] = 1  # set land class to 1
@@ -154,8 +155,8 @@ class Mask:
     # buffer water mask to exclude coastal areas due to high missclassification rate in original data
     def buffer_water_mask(self, buffer_size=3):
         """
-        Specifically handles the native water mask as it often contains false positives for cloudshadow in coastal
-        areas, both within and outside the water mask.
+        Specifically handles the operational water mask as it often contains false positives for
+        cloudshadow in coastal areas, both within and outside the water mask.
         Updates the multiclass mask in place.
 
         :param buffer_size: size of the buffer in pixels

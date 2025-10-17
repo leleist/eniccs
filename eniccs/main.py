@@ -4,31 +4,6 @@ from .classification import (reshape_image_to_table, get_pixellabels, balance_cl
 from .masks import Mask
 from .hs_image import HsImage
 
-
-def _transfer_nodata_to_mask(mask_obj: 'Mask',
-    spectral_image_obj: 'HsImage'
-) -> None:
-    """
-    Transfer no-data pixels from hyperspectral image to mask object.
-
-    Parameters
-    ----------
-    mask_obj : Mask
-        EnICCS mask object
-    spectral_image_obj : HsImage
-        EnICCS hyperspectral image object
-
-    Returns
-    -------
-    None
-        Function sets mask_obj.nodata_mask in-place.
-    """
-    nodata_mask = np.zeros_like(spectral_image_obj.image[0, :, :])
-    nodata_mask[spectral_image_obj.image[0, :, :] == spectral_image_obj.no_data_value] = 1
-    nodata_mask = np.expand_dims(nodata_mask, axis=0)
-    mask_obj.nodata_mask = nodata_mask
-
-
 # find undetected clouds and update cloud mask
 def improve_cloud_mask_over_land(
         spectral_image_obj: 'HsImage',
@@ -94,8 +69,9 @@ def improve_cloud_mask_over_land(
                      invalid='ignore'):  # catching potential divide by zero error. Nas are handeled accordingly downstream
         ci = (band_75 + 2 * band_153) / (band_6 + band_28 + band_47)
 
-    # apply threshold to CI # TODO: the ree lines lewo are not used because ci_binary is never used later. Remove?
+    # apply threshold to CI
     ci_threshold = 1  # small value from (0.01, 0.1, 1, 10, 100) as in Zhai et al. 2018
+    # TODO: the two lines below are not used because ci_binary is never used later. Remove?
     ci_binary = np.zeros(spectral_image.shape[1:])
     ci_binary[np.abs(ci) < ci_threshold] = 1
 
@@ -211,7 +187,7 @@ def run_eniccs(
         plot: bool = False,
         smooth_output: bool = True,
         contamination: float = 0.25,
-        percentile: int = 80,
+        percentile: int = 85,
         num_samples: int = 3000,
         n_jobs: int = -1,
 ):
@@ -283,9 +259,6 @@ def run_eniccs(
 
     # load masks
     mask_obj = Mask(dir_path, num_samples=num_samples)
-
-    # transfer nodata mask to mask object
-    _transfer_nodata_to_mask(mask_obj, spectral_image_obj)
 
     # refine cloud and cloud shadow masks
     refine_ccs_masks(spectral_image_obj, mask_obj)
