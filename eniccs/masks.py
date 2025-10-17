@@ -67,17 +67,18 @@ class Mask:
 
         def load_pattern(pattern):
             paths = []
-            for ext in ['TIF', 'tif', 'TIFF', 'tiff']:
+            for ext in ['TIF', 'tif', 'TIFF', 'tiff', 'BSQ', 'bsq']:
                 paths.extend(glob.glob(f"{self.dir_path}/*{pattern}.{ext}"))
             if not paths:
                 raise FileNotFoundError(
-                    f"Required mask file not found: *{pattern}.[TIF|tif|TIFF|tiff] in {self.dir_path}")
+                    f"Required mask file not found: *{pattern}.[TIF|tif|TIFF|tiff|BSQ|bsq] in"
+                    f" {self.dir_path}")
 
             with rasterio.open(paths[0]) as src:
                 if self.transform is None:
                     self.transform = src.transform
                     self.profile = src.profile
-                    self.datatake_name = os.path.basename(paths[0])[0:74]
+                    self.datatake_name = os.path.basename(paths[0])[0:85]
                 return src.read()
 
 
