@@ -100,7 +100,6 @@ The main module contains functions for mask refinement i.e. `improve_cloud_mask_
 `improve_cloud_shadow_mask` as well as a wrapper `refine_ccs_masks` that integrates the two prior functions into the 
 overall workflow.
 These functions can be modified. Here, bands, indices and thresholds can be changed to suit the surfaces of interest.
-A dedicated unit test ensures that changes are compatible with the overall workflow.
 
 In the context of supervised ML classification, we recall the garbage-in-garbage-out principle.
 Thus, the quality of the refined masks used for training is crucial for the performance of the PLS-DA model, 
