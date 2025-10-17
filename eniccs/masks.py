@@ -15,26 +15,27 @@ class Mask:
 
     attributes:
     - dir_path: path to the directory containing the masks, also used for saving the EnICCS masks
-    - mask_patterns: dictionary containing the patterns for the mask files in operational naming convention
+    - mask_patterns: dictionary containing the patterns for the mask files in operational naming
+      convention
     - profile: rasterio profile of the first loaded mask
     - transform: transform of the first loaded mask
-    - datatake_name: name of the datatake in native naming convention, used for saving the EnICCS masks
+    - datatake_name: name of the datatake in native naming convention, used for saving the
+      EnICCS masks
     - mask_data: list containing the loaded masks
     - multiclass_mask: combined masks into one multiclass raster for processing
-    - multiclass_mask_native: copy of the native multiclass mask, stores the original state
-    - coastal_buffer: binary mask containing the buffered coastal pixels to handle areas commonly misclassified in native data
+    - coastal_buffer: binary mask containing the buffered coastal pixels to handle areas commonly
+      misclassified in native data
     - classification_mask: improved mask, used for training
     - predicted_mask: mask predicted by the model
     - new_cloud_mask: updated cloud mask after postprocessing, binary
     - new_cloudshadow_mask: updated cloudshadow mask after postprocessing, binary
     """
-    def __init__(self, dir_path, mask_patterns=None, num_samples=3000,):
+    def __init__(self, dir_path, mask_patterns=None, num_samples=3000):
         if mask_patterns is None:
             self.mask_patterns = dict(Classes='_CLASSES', Cloud='_CLOUD', Cloud_shadow='CLOUDSHADOW')
         else:
             self.mask_patterns = mask_patterns
 
-        # TODO: remove unnecessary attributes
         self.dir_path = dir_path
         self.profile = None
         self.transform = None
@@ -42,7 +43,6 @@ class Mask:
         self.mask_data = [] # Placeholder for loaded mask data
         self.nodata_mask = None
         self.multiclass_mask = None
-        self.multiclass_mask_native = None
         self.min_samples = num_samples
         self.coastal_buffer = None
         self.classification_mask = None
@@ -57,9 +57,6 @@ class Mask:
 
         # check if cloud and cloud shadow masks contain enough pixels
         self._check_CCS_presence()
-
-        # copy native multiclass mask
-        self.multiclass_mask_native = self.combine_masks() # TODO: method does not have a return. better use self.multiclass_mask.deepcopy?
 
 
     # function to load and collect all masks into a list
