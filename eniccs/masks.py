@@ -200,7 +200,8 @@ class Mask:
         :param binary_mask: binary mask to be postprocessed
         :param structure_size: int, size of the structuring element for morphological operations
         :param buffer_size: size of the buffer for binary dilation
-        :param neutral_smooth: boolean, whether to apply morphological shape area neutral smoothing operations
+        :param neutral_smooth: boolean,
+                            whether to apply morphological shape area neutral smoothing operations
 
         :return: postprocessed binary mask
         """
@@ -232,7 +233,7 @@ class Mask:
             np.where(self.coastal_buffer == 1, 0, self.new_cloudshadow_mask))
 
 
-    def _resolve_cs_water_confusion(self):
+    def resolve_cs_water_confusion(self):
         """
         Resolve cloud-shadow water confusion.
         step1: close holes in cloud shadow mask that originate from CS misclassification as water
@@ -306,7 +307,7 @@ class Mask:
 
         return touch
 
-    def _modify_cloud_shadows_based_on_centroid_distance(self, percentile=0.80,
+    def modify_cloud_shadows_based_on_centroid_distance(self, percentile=0.80,
                                                          verbose=False, plot=False):
         """
         Approximates cloud-cloud shadow association based on the distance between cloud and
@@ -383,7 +384,7 @@ class Mask:
         self.new_cloudshadow_mask = np.where(result_mask == 2, 1, 0)
 
 
-    def _format_predicted_masks_to_binary(self):
+    def format_predicted_masks_to_binary(self):
         """
         Formats the predicted masks to binary cloud and cloudshadow masks for postprocessing.
         """

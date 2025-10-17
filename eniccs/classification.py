@@ -95,7 +95,13 @@ def balance_classes(labeled_pixels, labels, num_samples):
     """
 
     unique, counts = np.unique(labels, return_counts=True)
-    min_class_size = num_samples
+    # min_class_size = num_samples # depicated
+
+    # Handle case where num_samples is None or classes don't have enough samples
+    if num_samples is None:
+        min_class_size = min(counts)  # Use smallest class size
+    else:
+        min_class_size = min(num_samples, min(counts))  # Use smaller of requested or available
 
     # Randomly select the same number of samples from each class but make sure to not mix index with value
     balanced_pixels = np.zeros((min_class_size * len(unique), labeled_pixels.shape[1]))
@@ -307,7 +313,7 @@ def CV_optimize_n_components(X_train, y_train, max_components, cv=10, njobs=-1, 
     return f1_scores, optimal_n_components, pls_da
 
 
-def get_VIP(pls_da_model):
+def get_vip(pls_da_model):
     """
     Extract Variable Importance in Projection (VIP) scores (aka feature importance) from the PLS-DA model.
     Can help to understand model results and identify important features.
@@ -403,7 +409,7 @@ def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
     # print(type(pls_da), 'before vip')
 
     # get VIP scores
-    VIP_df = get_VIP(pls_da)
+    VIP_df = get_vip(pls_da)
 
     # # only print F1 score
     get_validation_report(X_test, y_test, pls_da, format=False)
@@ -415,4 +421,4 @@ def train_PLSDA(hs_image_obj, mask_obj, max_components=20, cv=10, njobs=-1):
 ## build a vector with all function names of this file
 #classification_functions = [reshape_image_to_table, get_pixellabels, outlier_removal, balance_classes, split_data,
 #                            multiclass_plsda, pls_da_predict, f1_weighted_scorer, CV_optimize_n_components,
-#                            get_VIP, validation_report, predict_on_image, train_PLSDA]
+#                            get_vip, validation_report, predict_on_image, train_PLSDA]
