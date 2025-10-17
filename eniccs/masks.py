@@ -134,25 +134,6 @@ class Mask:
         self.multiclass_mask = np.where(self.mask_data[2] == 2, 2, self.multiclass_mask)
 
 
-# apply binary opening (for removing flase positives from water mask)
-    def apply_binary_opening(self, mask_index, structure_size=3): # TODO: method not used? why? Remove?
-        """
-        Applies binary opening. Allows to buffer e.g. water mask to remove false positives common in native data.
-        Updates the mask data list in place.
-        """
-
-        input_mask = self.mask_data[mask_index]
-        input_mask = input_mask.squeeze()
-        structure = np.ones((structure_size, structure_size))
-        output_mask = binary_opening(input_mask, structure=structure)
-
-        # add arbitrary third dim to make shape fit
-        output_mask = np.expand_dims(output_mask, axis=0)
-
-        # update mask data
-        self.mask_data[mask_index] = output_mask.astype(np.uint8)
-
-
     # buffer water mask to exclude coastal areas due to high missclassification rate in original data
     def buffer_water_mask(self, buffer_size=3):
         """
