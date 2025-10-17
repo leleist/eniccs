@@ -159,10 +159,12 @@ class Mask:
         extended_water_mask = np.where(extended_water_mask_outwards == 1, 1, 0)
         extended_water_mask = np.where(extended_water_mask_inwards == 1, 1, extended_water_mask)
 
+        # subtract for cases where buffers may overlap (small water bodies, cured rivers)
         water_buffer_pixels = extended_water_mask - water_mask
 
+        # sometimes water/CS pixels also appear in the nodata mask.
+        # Make sure they are not included in the coastal buffer
         self.coastal_buffer = np.where(self.mask_data[0] == 1, 0, water_buffer_pixels)
-        # todo: very weird implementation of coastal uffer. is it needed?
 
 
     def format_mask_for_classification(self):
@@ -178,21 +180,8 @@ class Mask:
 
         self.classification_mask = formatted_mask
 
-    # def prediction_postprocessing(self, binary_mask, structure_size=4, buffer_size=2):
-    #     # TODO: make sure binray_mask is updated in self.___
-    #     binary_mask = np.squeeze(binary_mask)
-    #     # remove missclassification with water
-    #     binary_mask = np.where(self.mask_data[2] == 1, 0, binary_mask)
-#
-    #     # remove noise
-    #     binary_mask = binary_erosion(binary_mask, iterations=1)
-    #     mask_padded = binary_dilation(binary_mask, iterations=buffer_size)
-    #     structure = np.ones((1, structure_size, structure_size))
-    #     closed_mask = binary_closing(mask_padded, structure=structure)
-    #     final_mask = binary_opening(closed_mask, structure=structure)
-    #     return final_mask
 
-    def prediction_postprocessing(self, binary_mask, structure_size=2, buffer_size=1, neutral_smooth=True): # TODO whats up with buffer size?
+    def prediction_postprocessing(self, binary_mask, structure_size=2, buffer_size=1, neutral_smooth=True):
         """
         Postprocessing of the predicted mask to remove noise and smooth the output
         :param binary_mask: binary mask to be postprocessed
@@ -202,17 +191,10 @@ class Mask:
 
         :return: postprocessed binary mask
         """
-
-
-
-        # TODO: make sure binray_mask is updated in self.___
         binary_mask = np.squeeze(binary_mask)
 
         # close small holes
         binary_mask = remove_small_holes(binary_mask.astype(bool), area_threshold=600, connectivity=1)
-
-        # remove missclassification with water
-        # binary_mask = np.where(self.mask_data[2] == 1, 0, binary_mask)
 
         # remove noise
         if neutral_smooth:
@@ -227,19 +209,15 @@ class Mask:
 
         return final_mask
 
+
     def reset_cs_coastal_pixels(self):
         """
-        Reset CS masks for coastal pixels due to high uncertainties in native Data.
-        this method updates self.new_cloudshadow_mask
+        Reset CS masks for coastal pixels due to large uncertainties in operational data.
+        this method updates self.new_cloudshadow_mask, thus is applied during postprocessing.
         """
-        water_mask = self.mask_data[2].squeeze()
-        # TODO: Check redundancy with buffer_water_mask and binary_opening. 3 are a little much from the same task?
         self.new_cloudshadow_mask = np.squeeze(
             np.where(self.coastal_buffer == 1, 0, self.new_cloudshadow_mask))
-        # Update the cloud-shadow mask where there is both water and cloud shadow
-        # self.new_cloudshadow_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1),
-                                            # 1, self.new_cloudshadow_mask)
-        #
+
 
     def _resolve_cs_water_confusion(self):
         """
@@ -302,8 +280,6 @@ class Mask:
         :return: a boolean array where each shadow label/object is marked True if it touches a cloud.
         """
 
-        # TODO: maybe include water where it is intersecting with cloud shadows!!!!!
-
         cloud_border = (labeled_clouds > 0)
         shadow_border = (labeled_shadows > 0)
 
@@ -330,7 +306,8 @@ class Mask:
         """
         cloud_mask = self.new_cloud_mask
         cloud_shadow_mask = self.new_cloudshadow_mask
-        # Label the cloud and cloud shadow masks
+
+        # identify objects via connected component analysis
         labeled_clouds = label(cloud_mask)
         labeled_shadows = label(cloud_shadow_mask)
 
@@ -341,22 +318,11 @@ class Mask:
         cloud_centroids = np.array([prop.centroid for prop in cloud_props])
         shadow_centroids = np.array([prop.centroid for prop in shadow_props])
 
-
         # Use KDTree for efficient nearest neighbor search
         tree = cKDTree(cloud_centroids)
 
         # Query the tree for the nearest cloud centroid for each shadow centroid
         distances, _ = tree.query(shadow_centroids)
-
-        # Calculate the threshold based on the specified percentile or find it automatically
-        if percentile == 'auto': # TODO: Fix or remove 'auto' option
-            cloud_pixel_count = np.sum(cloud_mask)
-            cloudshadow_pixel_count = np.sum(cloud_shadow_mask)
-            ratio = (cloud_pixel_count * 1.15 / cloudshadow_pixel_count) * 100 # initial setting: 1.15
-            percentile = min(max(ratio, 0), 100) # clamp to range [0, 100] in case of very few detected CS
-        else:
-            percentile = percentile
-
 
         # Calculate the threshold based on the specified percentile
         threshold = np.percentile(distances, percentile)
@@ -409,6 +375,7 @@ class Mask:
         self.new_cloudshadow_mask = np.where(self.predicted_mask == 3, 1, 0).astype(np.uint8)
         self.new_cloud_mask = np.where(self.predicted_mask == 2, 1, 0).astype(np.uint8)
 
+
     def reapply_nodata_mask(self):
         """
         Reapplies the no data mask to the cloud and cloudshadow masks.
@@ -416,7 +383,8 @@ class Mask:
         self.new_cloud_mask = np.where(self.nodata_mask == 1, 0, self.new_cloud_mask)
         self.new_cloudshadow_mask = np.where(self.nodata_mask == 1, 0, self.new_cloudshadow_mask)
 
-    def save_mask_to_geotiff(self, raster=None, filename_prefix=None):
+
+    def save_mask_to_geotiff(self, raster=None, filename_prefix=None, output_dir=None):
         """
         Saves a raster to a geotiff file in the associated directory.
         Can also be used to save intermediate results from the Mask object.
@@ -424,12 +392,16 @@ class Mask:
 
         :param raster: raster to save
         :param filename_prefix: prefix for the filename
+        :param output_dir: directory to save the file, if None, uses the mask directory
         """
+        if output_dir is None:
+            output_dir = self.dir_path
 
-        output_path = self.dir_path + '/' + filename_prefix + '.tif'
+        output_path = output_dir + '/' + filename_prefix + '.tif'
+
         if len(raster.shape) != 2:
             # remove arbitratry third dim
-            raster_to_save = np.squeeze(raster.copy()) # TODO: Check: native masks are 3D with shape (1, x, y)!
+            raster_to_save = np.squeeze(raster.copy())
         else:
             raster_to_save = raster
 
