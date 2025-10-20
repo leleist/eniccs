@@ -1,4 +1,4 @@
-![EniCCS banner](example_image/EnICCS_banner_01.jpg)
+![EniCCS banner](figures/EnICCS_banner_01.jpg)
 
 **EnICCS** is a tool for generating improved cloud and cloud shadow masks for EnMAP L2A scenes over land surfaces.  
 
@@ -32,7 +32,7 @@ EnICCS intends to improve existing cloud and cloud shadow masks through a series
  3. Predictions are post-processed with a simple cloud-to-shadow matching routine.  
 
 The overall workflow is illustrated below:
-![workflow](./example_image/Fig_1_EnICCS_GitHub.jpg)
+![workflow](figures/Fig_1_EnICCS_GitHub.jpg)
 
 EnICCS is simple to use with a single function call and requires only the directory path of the EnMAP L2A data as input.
 
@@ -42,7 +42,7 @@ different regions and surface types. For more details see the [paper] and [custo
 ## Example
 Some exemplary pairs of EnMAP images with operational (left) and EnICCS masks (right) respectively:
 
-![Example Mask comparison](example_image/Fig_5_EnICCS_GitHub.png)
+![Example Mask comparison](figures/Fig_5_EnICCS_GitHub.png)
 
 
 ## Installation
