@@ -1,11 +1,9 @@
-# Ignore example_data directory
-# example_data/
 .idea/
-testing.jpynb
-# __pycache__/
-# *.pyc
-# *.pyo
-# .venv/
-# .env
-# .DS_Store
-# *.ipynb_checkpoints/
+*.iml
+
+example_data/
+local_misc/
+local_testing/
+testing/
+
+.ipynb_checkpoints/
