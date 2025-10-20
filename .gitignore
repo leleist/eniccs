@@ -1,9 +1,18 @@
+# IDE
 .idea/
 *.iml
 
+#
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Project folders
 example_data/
 local_misc/
 local_testing/
 testing/
 
-.ipynb_checkpoints/
