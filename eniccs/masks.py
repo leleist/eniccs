@@ -1,12 +1,19 @@
+"""
+The masks module contains the mask class which handles all processes that are only related to the
+QL masks themselves, such as loading, combining, buffering, formatting for classification, and
+postprocessing of predicted masks.
+"""
+
 import glob
 import os
 import rasterio
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import binary_dilation, binary_opening, binary_closing, binary_erosion
+from scipy.spatial import cKDTree
 from skimage.measure import label, regionprops
 from skimage.morphology import remove_small_holes
-from scipy.spatial import cKDTree
+
 
 class Mask:
     """
@@ -15,26 +22,31 @@ class Mask:
 
     attributes:
     - dir_path: path to the directory containing the masks, also used for saving the EnICCS masks
-    - mask_patterns: dictionary containing the patterns for the mask files in operational naming convention
+    - mask_patterns: dictionary containing the patterns for the mask files in operational naming
+      convention
     - profile: rasterio profile of the first loaded mask
     - transform: transform of the first loaded mask
-    - datatake_name: name of the datatake in native naming convention, used for saving the EnICCS masks
-    - mask_data: list containing the loaded masks
+    - datatake_name: name of the datatake in native naming convention, used for saving the
+      EnICCS masks
+    - mask_data: list containing the loaded masks. Note: data herein will be modified inplace.
     - multiclass_mask: combined masks into one multiclass raster for processing
-    - multiclass_mask_native: copy of the native multiclass mask, stores the original state
-    - coastal_buffer: binary mask containing the buffered coastal pixels to handle areas commonly misclassified in native data
+    - coastal_buffer: binary mask containing the buffered coastal pixels to handle areas commonly
+      misclassified in native data
     - classification_mask: improved mask, used for training
     - predicted_mask: mask predicted by the model
     - new_cloud_mask: updated cloud mask after postprocessing, binary
     - new_cloudshadow_mask: updated cloudshadow mask after postprocessing, binary
     """
-    def __init__(self, dir_path, mask_patterns=None, num_samples=3000,):
+    def __init__(self, dir_path, mask_patterns=None, num_samples=3000):
         if mask_patterns is None:
-            self.mask_patterns = dict(Classes='_CLASSES', Cloud='_CLOUD', Cloud_shadow='CLOUDSHADOW')
+            self.mask_patterns = {
+                'Classes': '_CLASSES',
+                'Cloud' :'_CLOUD',
+                'Cloud_shadow' :'CLOUDSHADOW'
+            }
         else:
             self.mask_patterns = mask_patterns
 
-        # TODO: remove unnecessary attributes
         self.dir_path = dir_path
         self.profile = None
         self.transform = None
@@ -42,7 +54,6 @@ class Mask:
         self.mask_data = [] # Placeholder for loaded mask data
         self.nodata_mask = None
         self.multiclass_mask = None
-        self.multiclass_mask_native = None
         self.min_samples = num_samples
         self.coastal_buffer = None
         self.classification_mask = None
@@ -50,16 +61,13 @@ class Mask:
         self.new_cloud_mask = None
         self.new_cloudshadow_mask = None
         self.validation_report = None
-        self.VIP_scores = None
+        self.vip_scores = None
 
         # load all masks and combine them into a multiclass mask upon initialization
         self.load_masks()
 
         # check if cloud and cloud shadow masks contain enough pixels
-        self._check_CCS_presence()
-
-        # copy native multiclass mask
-        self.multiclass_mask_native = self.combine_masks() # TODO: method does not have a return. better use self.multiclass_mask.deepcopy?
+        self._check_ccs_presence()
 
 
     # function to load and collect all masks into a list
@@ -70,17 +78,18 @@ class Mask:
 
         def load_pattern(pattern):
             paths = []
-            for ext in ['TIF', 'tif', 'TIFF', 'tiff']:
+            for ext in ['TIF', 'tif', 'TIFF', 'tiff', 'BSQ', 'bsq']:
                 paths.extend(glob.glob(f"{self.dir_path}/*{pattern}.{ext}"))
             if not paths:
                 raise FileNotFoundError(
-                    f"Required mask file not found: *{pattern}.[TIF|tif|TIFF|tiff] in {self.dir_path}")
+                    f"Required mask file not found: *{pattern}.[TIF|tif|TIFF|tiff|BSQ|bsq] in"
+                    f" {self.dir_path}")
 
             with rasterio.open(paths[0]) as src:
                 if self.transform is None:
                     self.transform = src.transform
                     self.profile = src.profile
-                    self.datatake_name = os.path.basename(paths[0])[0:74]
+                    self.datatake_name = os.path.basename(paths[0])[0:85]
                 return src.read()
 
 
@@ -88,8 +97,9 @@ class Mask:
         # land and water mask
         classesmask = load_pattern(self.mask_patterns['Classes'])
         nodatamask = np.zeros(classesmask.shape)
-        nodatamask[classesmask == 3] = 1  # set background class to 1
-        self.mask_data.append(nodatamask)  # TODO: can it be replaced with self.nodata_mask?, where is it used?
+        nodatamask[classesmask == 3] = 1   # 3 is nodata value of the Classes mask file!
+        self.mask_data.append(nodatamask)
+        self.nodata_mask = nodatamask
 
         landmask = np.zeros(classesmask.shape)
         landmask[classesmask == 1] = 1  # set land class to 1
@@ -107,7 +117,7 @@ class Mask:
         cloudshadowmask = load_pattern(self.mask_patterns['Cloud_shadow'])
         self.mask_data.append(cloudshadowmask)
 
-    def _check_CCS_presence(self):
+    def _check_ccs_presence(self):
         """
         Checks if cloud and cloud shadow masks contain enough pixels/samples.
         """
@@ -131,34 +141,16 @@ class Mask:
         for i, mask in enumerate(self.mask_data): # start=1
             self.multiclass_mask[mask != 0] = i
 
-        # overwrite cloudshadow with water mask to address CS-Water confusion in original data for training
+        # overwrite CS with water mask to address CS-Water confusion in original data for training
         self.multiclass_mask = np.where(self.mask_data[2] == 2, 2, self.multiclass_mask)
 
 
-# apply binary opening (for removing flase positives from water mask)
-    def apply_binary_opening(self, mask_index, structure_size=3): # TODO: method not used? why? Remove?
-        """
-        Applies binary opening. Allows to buffer e.g. water mask to remove false positives common in native data.
-        Updates the mask data list in place.
-        """
-
-        input_mask = self.mask_data[mask_index]
-        input_mask = input_mask.squeeze()
-        structure = np.ones((structure_size, structure_size))
-        output_mask = binary_opening(input_mask, structure=structure)
-
-        # add arbitrary third dim to make shape fit
-        output_mask = np.expand_dims(output_mask, axis=0)
-
-        # update mask data
-        self.mask_data[mask_index] = output_mask.astype(np.uint8)
-
-
-    # buffer water mask to exclude coastal areas due to high missclassification rate in original data
+    # buffer water mask to exclude coastal areas due to high missclassification rate of
+    # original data
     def buffer_water_mask(self, buffer_size=3):
         """
-        Specifically handles the native water mask as it often contains false positives for cloudshadow in coastal
-        areas, both within and outside the water mask.
+        Specifically handles the operational water mask as it often contains false positives for
+        cloudshadow in coastal areas, both within and outside the water mask.
         Updates the multiclass mask in place.
 
         :param buffer_size: size of the buffer in pixels
@@ -179,10 +171,12 @@ class Mask:
         extended_water_mask = np.where(extended_water_mask_outwards == 1, 1, 0)
         extended_water_mask = np.where(extended_water_mask_inwards == 1, 1, extended_water_mask)
 
+        # subtract for cases where buffers may overlap (small water bodies, cured rivers)
         water_buffer_pixels = extended_water_mask - water_mask
 
+        # sometimes water/CS pixels also appear in the nodata mask.
+        # Make sure they are not included in the coastal buffer
         self.coastal_buffer = np.where(self.mask_data[0] == 1, 0, water_buffer_pixels)
-        # todo: very weird implementation of coastal uffer. is it needed?
 
 
     def format_mask_for_classification(self):
@@ -198,41 +192,23 @@ class Mask:
 
         self.classification_mask = formatted_mask
 
-    # def prediction_postprocessing(self, binary_mask, structure_size=4, buffer_size=2):
-    #     # TODO: make sure binray_mask is updated in self.___
-    #     binary_mask = np.squeeze(binary_mask)
-    #     # remove missclassification with water
-    #     binary_mask = np.where(self.mask_data[2] == 1, 0, binary_mask)
-#
-    #     # remove noise
-    #     binary_mask = binary_erosion(binary_mask, iterations=1)
-    #     mask_padded = binary_dilation(binary_mask, iterations=buffer_size)
-    #     structure = np.ones((1, structure_size, structure_size))
-    #     closed_mask = binary_closing(mask_padded, structure=structure)
-    #     final_mask = binary_opening(closed_mask, structure=structure)
-    #     return final_mask
 
-    def prediction_postprocessing(self, binary_mask, structure_size=2, buffer_size=1, neutral_smooth=True): # TODO whats up with buffer size?
+    def prediction_postprocessing(self, binary_mask, structure_size=2, buffer_size=1,
+                                  neutral_smooth=True):
         """
         Postprocessing of the predicted mask to remove noise and smooth the output
         :param binary_mask: binary mask to be postprocessed
         :param structure_size: int, size of the structuring element for morphological operations
         :param buffer_size: size of the buffer for binary dilation
-        :param neutral_smooth: boolean, whether to apply morphological shape area neutral smoothing operations
+        :param neutral_smooth: boolean,
+                            whether to apply morphological shape area neutral smoothing operations
 
         :return: postprocessed binary mask
         """
-
-
-
-        # TODO: make sure binray_mask is updated in self.___
         binary_mask = np.squeeze(binary_mask)
 
         # close small holes
         binary_mask = remove_small_holes(binary_mask.astype(bool), area_threshold=600, connectivity=1)
-
-        # remove missclassification with water
-        # binary_mask = np.where(self.mask_data[2] == 1, 0, binary_mask)
 
         # remove noise
         if neutral_smooth:
@@ -247,21 +223,17 @@ class Mask:
 
         return final_mask
 
+
     def reset_cs_coastal_pixels(self):
         """
-        Reset CS masks for coastal pixels due to high uncertainties in native Data.
-        this method updates self.new_cloudshadow_mask
+        Reset CS masks for coastal pixels due to large uncertainties in operational data.
+        this method updates self.new_cloudshadow_mask, thus is applied during postprocessing.
         """
-        water_mask = self.mask_data[2].squeeze()
-        # TODO: Check redundancy with buffer_water_mask and binary_opening. 3 are a little much from the same task?
         self.new_cloudshadow_mask = np.squeeze(
             np.where(self.coastal_buffer == 1, 0, self.new_cloudshadow_mask))
-        # Update the cloud-shadow mask where there is both water and cloud shadow
-        # self.new_cloudshadow_mask = np.where((water_mask == 1) & (self.new_cloudshadow_mask == 1),
-                                            # 1, self.new_cloudshadow_mask)
-        #
 
-    def _resolve_cs_water_confusion(self):
+
+    def resolve_cs_water_confusion(self):
         """
         Resolve cloud-shadow water confusion.
         step1: close holes in cloud shadow mask that originate from CS misclassification as water
@@ -319,13 +291,11 @@ class Mask:
         :param labeled_clouds: labeled cloud mask (binary)
         :param labeled_shadows: labeled cloud shadow mask (binary)
 
-        :return: a boolean array where each shadow label/object is marked True if it touches a cloud.
+        :return: a boolean array where each shadow label/object is marked True if it touches a cloud
         """
 
-        # TODO: maybe include water where it is intersecting with cloud shadows!!!!!
-
-        cloud_border = (labeled_clouds > 0)
-        shadow_border = (labeled_shadows > 0)
+        cloud_border = labeled_clouds > 0
+        shadow_border = labeled_shadows > 0
 
         # Shift the cloud mask in all 8 directions and check for overlap with shadow mask
         touch = np.zeros_like(labeled_clouds, dtype=bool)
@@ -337,20 +307,23 @@ class Mask:
 
         return touch
 
-    def _modify_cloud_shadows_based_on_centroid_distance(self, percentile=0.80, verbose=False, plot=False):
+    def modify_cloud_shadows_based_on_centroid_distance(self, percentile=0.80,
+                                                         verbose=False, plot=False):
         """
-        Approximates cloud-cloud shadow association based on the distance between cloud and shadow centroids.
-        The distance threshold is calculated based on the specified percentile of the nearest neighbor distances
-        and the ratio of cloud and cloud shadow pixels in the scene.
+        Approximates cloud-cloud shadow association based on the distance between cloud and
+        shadow centroids. The distance threshold is calculated based on the specified percentile
+        of the nearest neighbor distances and the ratio of cloud and cloud shadow pixels in the
+        scene.
         Updates new_cloud_mask and new_cloudshadow_mask in place.
 
-        :param percentile: percentile of the nearest neighbor distances to use as threshold, 'Auto' for automatic calculation
+        :param percentile: percentile of the nearest neighbor distances to use as threshold
         :param plot: boolean, whether to plot the distance histogram
         :param verbose: boolean, whether to print the number of modified cloud shadows
         """
         cloud_mask = self.new_cloud_mask
         cloud_shadow_mask = self.new_cloudshadow_mask
-        # Label the cloud and cloud shadow masks
+
+        # identify objects via connected component analysis
         labeled_clouds = label(cloud_mask)
         labeled_shadows = label(cloud_shadow_mask)
 
@@ -361,22 +334,11 @@ class Mask:
         cloud_centroids = np.array([prop.centroid for prop in cloud_props])
         shadow_centroids = np.array([prop.centroid for prop in shadow_props])
 
-
         # Use KDTree for efficient nearest neighbor search
         tree = cKDTree(cloud_centroids)
 
         # Query the tree for the nearest cloud centroid for each shadow centroid
         distances, _ = tree.query(shadow_centroids)
-
-        # Calculate the threshold based on the specified percentile or find it automatically
-        if percentile == 'auto': # TODO: Fix or remove 'auto' option
-            cloud_pixel_count = np.sum(cloud_mask)
-            cloudshadow_pixel_count = np.sum(cloud_shadow_mask)
-            ratio = (cloud_pixel_count * 1.15 / cloudshadow_pixel_count) * 100 # initial setting: 1.15
-            percentile = min(max(ratio, 0), 100) # clamp to range [0, 100] in case of very few detected CS
-        else:
-            percentile = percentile
-
 
         # Calculate the threshold based on the specified percentile
         threshold = np.percentile(distances, percentile)
@@ -395,7 +357,7 @@ class Mask:
             min_distance = distances[shadow_index]
 
             # Get the shadow region mask
-            shadow_region = (labeled_shadows == shadow_prop.label)
+            shadow_region = labeled_shadows == shadow_prop.label
 
             # Check if any part of the shadow is touching a cloud
             touching_cloud = np.any(touch_mask[shadow_region])
@@ -409,7 +371,7 @@ class Mask:
         if plot:
             plt.hist(distances, bins=20, edgecolor='black')
             # plt.axvline(x=threshold, color='r', linestyle='--')
-            plt.title(f'Distribution of Shadow Distances to Nearest Cloud Centroid')
+            plt.title('Distribution of Shadow Distances to Nearest Cloud Centroid')
             plt.xlabel('Distance to nearest cloud centroid')
             plt.ylabel('Frequency')
             plt.show()
@@ -422,12 +384,13 @@ class Mask:
         self.new_cloudshadow_mask = np.where(result_mask == 2, 1, 0)
 
 
-    def _format_predicted_masks_to_binary(self):
+    def format_predicted_masks_to_binary(self):
         """
         Formats the predicted masks to binary cloud and cloudshadow masks for postprocessing.
         """
         self.new_cloudshadow_mask = np.where(self.predicted_mask == 3, 1, 0).astype(np.uint8)
         self.new_cloud_mask = np.where(self.predicted_mask == 2, 1, 0).astype(np.uint8)
+
 
     def reapply_nodata_mask(self):
         """
@@ -436,7 +399,8 @@ class Mask:
         self.new_cloud_mask = np.where(self.nodata_mask == 1, 0, self.new_cloud_mask)
         self.new_cloudshadow_mask = np.where(self.nodata_mask == 1, 0, self.new_cloudshadow_mask)
 
-    def save_mask_to_geotiff(self, raster=None, filename_prefix=None):
+
+    def save_mask_to_geotiff(self, raster=None, filename_prefix=None, output_dir=None):
         """
         Saves a raster to a geotiff file in the associated directory.
         Can also be used to save intermediate results from the Mask object.
@@ -444,16 +408,25 @@ class Mask:
 
         :param raster: raster to save
         :param filename_prefix: prefix for the filename
+        :param output_dir: directory to save the file, if None, uses the mask directory
         """
+        if output_dir is None:
+            output_dir = self.dir_path
 
-        output_path = self.dir_path + '/' + filename_prefix + '.tif'
+        output_path = output_dir + '/' + filename_prefix + '.tif'
+
         if len(raster.shape) != 2:
             # remove arbitratry third dim
-            raster_to_save = np.squeeze(raster.copy()) # TODO: Check: native masks are 3D with shape (1, x, y)!
+            raster_to_save = np.squeeze(raster.copy())
         else:
             raster_to_save = raster
 
-        with rasterio.open(output_path, 'w', driver=self.profile['driver'], height=self.mask_data[1].shape[1],
-                           width=self.mask_data[1].shape[2], count=1, dtype=str(self.profile['dtype']),
-                           crs=self.profile['crs'], transform=self.profile['transform'], compression='zstd') as dst:
+        with rasterio.open(output_path, 'w', driver=self.profile['driver'],
+                           height=self.mask_data[1].shape[1],
+                           width=self.mask_data[1].shape[2],
+                           count=1,
+                           dtype=str(self.profile['dtype']),
+                           crs=self.profile['crs'],
+                           transform=self.profile['transform'],
+                           compression='zstd') as dst:
             dst.write(raster_to_save, 1)

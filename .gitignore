@@ -1,3 +1,20 @@
-# Ignore example_data directory
+# IDE
+.idea/
+*.iml
+
+#
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Project specific
 example_data/
-testing.jpynb
+local_misc/
+local_testing/
+testing/
+
+eniccs.ipynb
+
