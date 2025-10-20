@@ -1,3 +1,10 @@
 # Ignore example_data directory
-example_data/
+# example_data/
 testing.jpynb
+# __pycache__/
+# *.pyc
+# *.pyo
+# .venv/
+# .env
+# .DS_Store
+# *.ipynb_checkpoints/
