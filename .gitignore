@@ -1,5 +1,6 @@
 # Ignore example_data directory
 # example_data/
+.idea/
 testing.jpynb
 # __pycache__/
 # *.pyc
