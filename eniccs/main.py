@@ -22,7 +22,7 @@ Here changes can be made to existing band indices and thresholds, or new ones ca
 
 import numpy as np
 from .classification import (reshape_image_to_table, get_pixellabels, balance_classes,
-                             outlier_removal, split_data, PLSDA_model_builder, get_vip,
+                             outlier_removal, split_data, plsda_model_builder, get_vip,
                              get_validation_report,
                              predict_on_image)
 from .masks import Mask
@@ -416,7 +416,7 @@ def classify_image(
     # split data
     X_train, X_test, y_train, y_test = split_data(balanced_pixels, balanced_labels)
 
-    pls_da = PLSDA_model_builder(X_train, y_train, auto_optimize=auto_optimize,
+    pls_da = plsda_model_builder(X_train, y_train, auto_optimize=auto_optimize,
                                  verbose=verbose,
                                  plot=plot,
                                  n_jobs=n_jobs)
@@ -426,7 +426,7 @@ def classify_image(
     mask_obj.vip_scores = vip_df
 
     # get validation report
-    val_report = get_validation_report(X_test, y_test, pls_da, format=True, verbose=verbose)
+    val_report = get_validation_report(X_test, y_test, pls_da, format_output=True, verbose=verbose)
 
     # attach to mask object
     mask_obj.validation_report = val_report
@@ -441,14 +441,15 @@ def classify_image(
     # update water mask to remove falsely classified water pixels in native water mask
     mask_obj.resolve_cs_water_confusion()
 
+    # postprocess cloud shadows based on cloud to shadow distance
     mask_obj.modify_cloud_shadows_based_on_centroid_distance(percentile=percentile,
                                                              verbose=verbose,
                                                              plot=plot)  # 75
 
-    # postprocess cloudshadow to remove missclassifications along water bodies
+    # postprocess cloud shadow to remove misclassifications along water bodies
     mask_obj.reset_cs_coastal_pixels()
 
-    # postprocess predictions
+    # postprocess predictions with morphological operations
     mask_obj.new_cloud_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask,
                                                                  structure_size=3,
                                                                  buffer_size=1,
