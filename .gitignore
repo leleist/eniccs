@@ -3,6 +3,9 @@
 *.iml
 
 #
+eniccs.egg-info
+
+#
 __pycache__/
 *.pyc
 *.pyo
