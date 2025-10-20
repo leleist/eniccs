@@ -196,6 +196,7 @@ def run_eniccs(
         contamination: float = 0.25,
         percentile: int = 85,
         num_samples: int = 3000,
+        buffer_size: int = 1,
         n_jobs: int = -1,
 ):
     """
@@ -242,6 +243,8 @@ def run_eniccs(
         Number of samples to use for training the classification model.
         the default (3000) is conservative. low values first deteriorate model performance,
         for cloud shadows due to higher spectral variability.
+    buffer_size: int, default=1
+        buffer size for dilation of CCS masks during processing.
     n_jobs : int, default=-1
         Number of parallel jobs to run. -1 --> all processors.
 
@@ -284,6 +287,7 @@ def run_eniccs(
         percentile=percentile,
         n_jobs=n_jobs,
         smooth_output=smooth_output,
+        buffer_size=buffer_size,
         plot=plot
     )
 
@@ -354,6 +358,7 @@ def classify_image(
         auto_optimize: bool = False,
         verbose: bool = False,
         plot: bool = False,
+        buffer_size = 1,
         smooth_output: bool = True,
         n_jobs: int = -1,
 ):
@@ -383,6 +388,8 @@ def classify_image(
         Whether to print progress information.
     plot : bool, default=False
         Whether to generate diagnostic plots during processing.
+    buffer_size: int, default=1
+        Buffer size for dilation of CCS masks during processing.
     smooth_output : bool, default=True
         Whether to apply smoothing during postprocessing of predictions. Generally recommended.
     n_jobs : int, default=-1
@@ -452,12 +459,12 @@ def classify_image(
     # postprocess predictions with morphological operations
     mask_obj.new_cloud_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloud_mask,
                                                                  structure_size=3,
-                                                                 buffer_size=1,
+                                                                 buffer_size=buffer_size,
                                                                  neutral_smooth=smooth_output)
 
     mask_obj.new_cloudshadow_mask = mask_obj.prediction_postprocessing(mask_obj.new_cloudshadow_mask,
                                                                        structure_size=3,
-                                                                       buffer_size=1,
+                                                                       buffer_size=buffer_size,
                                                                        neutral_smooth=smooth_output)
     # reconciling cloud and cloud shadow masks, favoring cloud mask
     mask_obj.new_cloudshadow_mask[mask_obj.new_cloud_mask == 1] = 0
