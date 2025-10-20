@@ -10,9 +10,11 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Project folders
+# Project specific
 example_data/
 local_misc/
 local_testing/
 testing/
+
+eniccs.ipynb
 
