@@ -1,4 +1,5 @@
 ![EniCCS banner](figures/EnICCS_banner_01.jpg)
+[![DOI](https://zenodo.org/badge/835747322.svg)](https://doi.org/10.5281/zenodo.17405266)  
 
 **EnICCS** is a tool for generating improved cloud and cloud shadow masks for EnMAP L2A scenes over land surfaces.  
 
@@ -91,7 +92,8 @@ run_eniccs(
      contamination: float = 0.25,       # contamination parameter for LOF outlier detection
      percentile: int = 80,              # percentile for cloud-to-shadow matching routine distance threshold
      num_samples: int = 3000,           # number of samples for PLS-DA training
-     n_jobs: int = -1,                  # number of parallel jobs (CPU)
+     buffer_size: int = 1,              # Buffer size for dilation of CCS mask outputs.
+     n_jobs: int = -1                   # number of parallel jobs (CPU)
 )
 ```
 
@@ -122,6 +124,8 @@ benchmarking dataset on Zenodo [10.5281/zenodo.17350339](https://doi.org/10.5281
 For tile-wise performance metrics please consult the [paper]() Supplemental Information.
 
 ## Citation
+Please cite the accompanying paper and Zenodo sources. 
+
 
 ## Funding and Acknowledgements
 This work was funded by the German Space Agency at DLR via the German Federal Ministry of Economic Affairs 
