@@ -22,13 +22,15 @@ For details please refer to the accompanying [paper](https://www.sciencedirect.c
 - [EnMAP Cloud and Cloud Shadow Benchmarking Dataset](#enmap-cloud-and-cloud-shadow-benchmarking-dataset)
 - [Citation](#citation)
 - [Funding and Acknowledgements](#funding-and-acknowledgements)
-- [License](#license)
+- [License](#license)  
+<br>
 
 ### Background
 Current operational cloud and cloud shadow masks often fail to detect small clouds and cloud shadows and lack proper 
 cloud boundary delineation. Residual clouds and cloud shadows can significantly distort spectral signatures, 
 such that the recorded signal no longer corresponds to the expected ‘clear-sky’ measurement of the observed surface. 
-This, in turn, compromises any downstream analysis.
+This, in turn, compromises any downstream analysis.  
+<br>
 
 ### About EnICCS
 EnICCS intends to improve existing cloud and cloud shadow masks through a series of steps.
@@ -42,12 +44,14 @@ The overall workflow is illustrated below:
 EnICCS is simple to use with a single function call and requires only the directory path of the EnMAP L2A data as input.
 
 Various parameters can be adjusted to improve performance while implementation level changes can help adapt the tool to
-different regions and surface types. For more details see the [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) and [customization](#customization) section.
+different regions and surface types. For more details see the [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) and [customization](#customization) section.  
+<br>
 
 ## Example
 Some exemplary pairs of EnMAP images with operational (left) and EnICCS masks (right) respectively:
 
-![Example Mask comparison](figures/Fig_5_EnICCS_GitHub.png)
+![Example Mask comparison](figures/Fig_5_EnICCS_GitHub.png)  
+<br>
 
 
 ## Installation
@@ -55,7 +59,8 @@ Some exemplary pairs of EnMAP images with operational (left) and EnICCS masks (r
 You can install **EnICCS** from GitHub using pip:
 ```bash
 pip install git+https://github.com/leleist/eniccs.git
-```
+```  
+<br>
 
 ## Usage
 To use **EnICCS**, you can import it and run the main wrapper function with default parameters.  
@@ -71,16 +76,18 @@ run_eniccs(dir_path)
 
 # new cloud and cloudshadow masks will be saved to "dir_path"
 ```
-**Please note:** EnICCS currently accepts two file types, TIFF and BSQ, with common extensions (.TIFF, .TIF, .tiff, .tif, .BSQ, .bsq)
+**Please note:** EnICCS currently accepts two file types, TIFF and BSQ, with common extensions (.TIFF, .TIF, .tiff, .tif, .BSQ, .bsq)  
+<br>
 
 ## Note on Transferability:
 EnICCS was developed and tested on EnMAP scenes over smallholder areas of tropical western Kenya.
 Application to regions with differing surface characteristics may require adjustments. 
 The code structure allows for some optimization with available parameters and simple adaptation, leveraging expert 
-knowledge and/or visual inspection. For more details see the accompanying [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) and [Customization](#customization).
-
+knowledge and/or visual inspection. For more details see the accompanying [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) and [Customization](#customization).  
+<br>
 ## Customization
-EnICCS has two points of contact for customization:
+EnICCS has two points of contact for customization:  
+<br>
 
 #### 1. Parameter Adjustments
 The following parameters can be adjusted when calling the `run_eniccs` function:
@@ -99,7 +106,8 @@ run_eniccs(
      buffer_size: int = 1,              # Buffer size for dilation of CCS mask outputs.
      n_jobs: int = -1                   # number of parallel jobs (CPU)
 )
-```
+```  
+<br>
 
 #### 2. Implementation Level Changes
 The main module contains functions for mask refinement i.e. `improve_cloud_mask_over_land` and 
@@ -109,23 +117,24 @@ These functions can be modified. Here, bands, indices and thresholds can be chan
 
 In the context of supervised ML classification, we recall the garbage-in-garbage-out principle.
 Thus, the quality of the refined masks used for training is crucial for the performance of the PLS-DA model, 
-despite the available post-processing steps.
-
-
-
+despite the available post-processing steps.  
+<br>
 
 ## Contributions
 Contributions are welcome!  
-Specifically regarding band indices and thresholds for different surface types (Desert, Snow, Urban).
+Specifically regarding band indices and thresholds for different surface types (Desert, Snow, Urban).  
+<br>
 
 ## Planned Features
- - "no data mode" for using EnICCS as a standalone cloud masking tool, without existing operational masks.
+ - "no data mode" for using EnICCS as a standalone cloud masking tool, without existing operational masks.  
+<br>
 
 
 ## EnMAP Cloud and Cloud Shadow Benchmarking Dataset
 We provide the hand-drawn "gold standard" reference masks for five EnMAP scenes used in the accompanying [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) as a 
 benchmarking dataset on Zenodo [10.5281/zenodo.17350339](https://doi.org/10.5281/zenodo.17350339).  
-For tile-wise performance metrics please consult the [paper supplemental information](https://ars.els-cdn.com/content/image/1-s2.0-S1569843225005618-mmc1.docx).
+For tile-wise performance metrics please consult the [paper supplemental information](https://ars.els-cdn.com/content/image/1-s2.0-S1569843225005618-mmc1.docx).  
+<br>
 
 ## Citation
 Please cite the accompanying paper and Zenodo sources:
@@ -138,14 +147,16 @@ Volume 144,
 104914,
 ISSN 1569-8432,
 https://doi.org/10.1016/j.jag.2025.104914,
-https://www.sciencedirect.com/science/article/pii/S1569843225005618.
+https://www.sciencedirect.com/science/article/pii/S1569843225005618.  
+<br>
 
 
 ## Funding and Acknowledgements
 This work was funded by the German Space Agency at DLR via the German Federal Ministry of Economic Affairs 
 and Climate Action under Grant 50EE2303A.
 
-Illustrations contain EnMAP data and modified EnMAP data © DLR [2023, 2024]. All rights reserved.
+Illustrations contain EnMAP data and modified EnMAP data © DLR [2023, 2024]. All rights reserved.  
+<br>
 
 
 ## License
