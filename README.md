@@ -1,9 +1,12 @@
 ![EniCCS banner](figures/EnICCS_banner_01.jpg)
-[![DOI](https://zenodo.org/badge/835747322.svg)](https://doi.org/10.5281/zenodo.17405266)  
+[![DOI](https://zenodo.org/badge/835747322.svg)](https://doi.org/10.5281/zenodo.17405266)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python](https://img.shields.io/badge/python-3.11+-brightgreen.svg)](https://www.python.org/)
+[![GitHub release](https://img.shields.io/github/v/release/leleist/eniccs)](https://github.com/leleist/eniccs/releases/)
 
 **EnICCS** is a tool for generating improved cloud and cloud shadow masks for EnMAP L2A scenes over land surfaces.  
 
-For details please refer to the accompanying [paper]().
+For details please refer to the accompanying [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618).
 
 ## Table of Contents
 
@@ -38,7 +41,7 @@ The overall workflow is illustrated below:
 EnICCS is simple to use with a single function call and requires only the directory path of the EnMAP L2A data as input.
 
 Various parameters can be adjusted to improve performance while implementation level changes can help adapt the tool to
-different regions and surface types. For more details see the [paper] and [customization](#customization) section.
+different regions and surface types. For more details see the [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) and [customization](#customization) section.
 
 ## Example
 Some exemplary pairs of EnMAP images with operational (left) and EnICCS masks (right) respectively:
@@ -73,7 +76,7 @@ run_eniccs(dir_path)
 EnICCS was developed and tested on EnMAP scenes over smallholder areas of tropical western Kenya.
 Application to regions with differing surface characteristics may require adjustments. 
 The code structure allows for some optimization with available parameters and simple adaptation, leveraging expert 
-knowledge and/or visual inspection. For more details see the accompanying [paper] and [Customization](#customization).
+knowledge and/or visual inspection. For more details see the accompanying [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) and [Customization](#customization).
 
 ## Customization
 EnICCS has two points of contact for customization:
@@ -119,12 +122,22 @@ Specifically regarding band indices and thresholds for different surface types (
 
 
 ## EnMAP Cloud and Cloud Shadow Benchmarking Dataset
-We provide the hand-drawn "gold standard" reference masks for five EnMAP scenes used in the accompanying [paper]() as a 
+We provide the hand-drawn "gold standard" reference masks for five EnMAP scenes used in the accompanying [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) as a 
 benchmarking dataset on Zenodo [10.5281/zenodo.17350339](https://doi.org/10.5281/zenodo.17350339).  
-For tile-wise performance metrics please consult the [paper]() Supplemental Information.
+For tile-wise performance metrics please consult the [paper supplemental information](https://ars.els-cdn.com/content/image/1-s2.0-S1569843225005618-mmc1.docx).
 
 ## Citation
-Please cite the accompanying paper and Zenodo sources. 
+Please cite the accompanying paper and Zenodo sources:
+
+Leander Leist, Boris Thies, Jörg Bendix,
+Evaluation and improvement of EnMAP’s cloud and cloud-shadow masks – An application in tropical western Kenya,
+International Journal of Applied Earth Observation and Geoinformation,
+Volume 144,
+2025,
+104914,
+ISSN 1569-8432,
+https://doi.org/10.1016/j.jag.2025.104914,
+https://www.sciencedirect.com/science/article/pii/S1569843225005618.
 
 
 ## Funding and Acknowledgements
