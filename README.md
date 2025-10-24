@@ -15,6 +15,7 @@ For details please refer to the accompanying [paper](https://www.sciencedirect.c
 - [Example](#example)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Note on Transferability](#note-on-transferability)
 - [Customization](#customization)
 - [Contributions](#contributions)
 - [Planned Features](#planned-features)
@@ -72,7 +73,7 @@ run_eniccs(dir_path)
 ```
 **Please note:** EnICCS currently accepts two file types, TIFF and BSQ, with common extensions (.TIFF, .TIF, .tiff, .tif, .BSQ, .bsq)
 
-### Note on Transferability:
+## Note on Transferability:
 EnICCS was developed and tested on EnMAP scenes over smallholder areas of tropical western Kenya.
 Application to regions with differing surface characteristics may require adjustments. 
 The code structure allows for some optimization with available parameters and simple adaptation, leveraging expert 
