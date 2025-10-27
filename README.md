@@ -1,4 +1,4 @@
-![EniCCS banner](figures/EnICCS_banner_01.jpg)
+![EniCCS banner](figures/EnICCS_banner_01.jpg)  
 [![DOI](https://zenodo.org/badge/835747322.svg)](https://doi.org/10.5281/zenodo.17405266)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/python-3.11+-brightgreen.svg)](https://www.python.org/)
@@ -101,7 +101,7 @@ run_eniccs(
      plot: bool = False,                # plot informative plots
      smooth_output: bool = True,        # apply conservative morphological processing for smooting the output masks
      contamination: float = 0.25,       # contamination parameter for LOF outlier detection
-     percentile: int = 80,              # percentile for cloud-to-shadow matching routine distance threshold
+     percentile: int = 85,              # percentile for cloud-to-shadow matching routine distance threshold
      num_samples: int = 3000,           # number of samples for PLS-DA training
      buffer_size: int = 1,              # Buffer size for dilation of CCS mask outputs.
      n_jobs: int = -1                   # number of parallel jobs (CPU)
@@ -126,14 +126,14 @@ Specifically regarding band indices and thresholds for different surface types (
 <br>
 
 ## Planned Features
- - "no data mode" for using EnICCS as a standalone cloud masking tool, without existing operational masks.  
+ - "no reference data" mode for using EnICCS as a standalone cloud masking tool, without existing operational masks.  
 <br>
 
 
 ## EnMAP Cloud and Cloud Shadow Benchmarking Dataset
 We provide the hand-drawn "gold standard" reference masks for five EnMAP scenes used in the accompanying [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) as a 
 benchmarking dataset on Zenodo [10.5281/zenodo.17350339](https://doi.org/10.5281/zenodo.17350339).  
-For tile-wise performance metrics please consult the [paper supplemental information](https://ars.els-cdn.com/content/image/1-s2.0-S1569843225005618-mmc1.docx).  
+For tile-wise performance metrics, please consult the [paper supplemental information](https://ars.els-cdn.com/content/image/1-s2.0-S1569843225005618-mmc1.docx).  
 <br>
 
 ## Citation
