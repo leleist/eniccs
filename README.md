@@ -132,7 +132,7 @@ Specifically regarding band indices and thresholds for different surface types (
 
 ## EnMAP Cloud and Cloud Shadow Benchmarking Dataset
 We provide the hand-drawn "gold standard" reference masks for five EnMAP scenes used in the accompanying [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) as a 
-benchmarking dataset on Zenodo [10.5281/zenodo.17350339](https://doi.org/10.5281/zenodo.17350339).  
+benchmarking dataset on Zenodo [10.5281/zenodo.17350339](https://doi.org/10.5281/zenodo.18494222).  
 For tile-wise performance metrics, please consult the [paper supplemental information](https://ars.els-cdn.com/content/image/1-s2.0-S1569843225005618-mmc1.docx).  
 <br>
 
