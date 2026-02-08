@@ -104,7 +104,8 @@ run_eniccs(
      percentile: int = 85,              # percentile for cloud-to-shadow matching routine distance threshold
      num_samples: int = 3000,           # number of samples for PLS-DA training
      buffer_size: int = 1,              # Buffer size for dilation of CCS mask outputs.
-     n_jobs: int = -1                   # number of parallel jobs (CPU)
+     n_jobs: int = -1,                  # number of parallel jobs (CPU)
+     random_state: int = 42             # random state for class balancing and data splitting
 )
 ```  
 <br>
