@@ -84,13 +84,14 @@ def outlier_removal(labeled_pixels, labels, contamination: float = 0.25, n_neigh
     return non_outlier_labeled_pixels, non_outlier_labels
 
 
-def balance_classes(labeled_pixels, labels, num_samples):
+def balance_classes(labeled_pixels, labels, num_samples, random_state=None):
     """
     Balances the classes by randomly selecting n samples from each class
 
     :param labeled_pixels: 2D array of labeled pixels
     :param labels: 1D array of labels
     :param num_samples: number of samples to select from each class
+    :param random_state: random seed for reproducibility
 
     :return: balanced_pixels, balanced_labels
     """
@@ -106,16 +107,18 @@ def balance_classes(labeled_pixels, labels, num_samples):
     # Randomly select the same number of samples from each class
     balanced_pixels = np.zeros((min_class_size * len(unique), labeled_pixels.shape[1]))
     balanced_labels = np.zeros(min_class_size * len(unique), dtype=int)
+    rng = np.random.default_rng(random_state)
+    print(rng)
     for i, label in enumerate(unique):
         class_samples = labeled_pixels[labels == label, :]
-        random_indices = np.random.choice(class_samples.shape[0], min_class_size, replace=False)
+        random_indices = rng.choice(class_samples.shape[0], min_class_size, replace=False)
         balanced_pixels[i * min_class_size:(i + 1) * min_class_size, :] = class_samples[random_indices, :]
         balanced_labels[i * min_class_size:(i + 1) * min_class_size] = label
 
     return balanced_pixels, balanced_labels
 
 
-def split_data(balanced_pixels, balanced_labels, test_size=0.3, random_state=321):
+def split_data(balanced_pixels, balanced_labels, test_size=0.3, random_state=None):
     """
     Splits the data into training and testing sets. The labels are one-hot encoded for training.
     Split is mostly necessary for if PLS-DA model Auto_optimize is = True

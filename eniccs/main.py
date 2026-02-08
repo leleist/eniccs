@@ -198,6 +198,7 @@ def run_eniccs(
         num_samples: int = 3000,
         buffer_size: int = 1,
         n_jobs: int = -1,
+        random_state: int = 42
 ):
     """
     Main wrapper for the EnICCS pipeline for improving EnMAP's operational
@@ -247,6 +248,8 @@ def run_eniccs(
         buffer size for dilation of CCS masks during processing.
     n_jobs : int, default=-1
         Number of parallel jobs to run. -1 --> all processors.
+    random_state: int, default=42
+        Random state for reproducibility of results.
 
     Returns
     -------
@@ -288,7 +291,8 @@ def run_eniccs(
         n_jobs=n_jobs,
         smooth_output=smooth_output,
         buffer_size=buffer_size,
-        plot=plot
+        plot=plot,
+        random_state=random_state
     )
 
     if save_output:
@@ -361,6 +365,7 @@ def classify_image(
         buffer_size = 1,
         smooth_output: bool = True,
         n_jobs: int = -1,
+        random_state: int = 42
 ):
     """
     Classify hyperspectral image using PLS-DA model for cloud and cloud shadow detection.
@@ -394,6 +399,8 @@ def classify_image(
         Whether to apply smoothing during postprocessing of predictions. Generally recommended.
     n_jobs : int, default=-1
         Number of parallel jobs to run. -1 --> all processors.
+    random_state : int, default=42
+        Random state for reproducibility of results.
 
     Returns
     -------
@@ -413,7 +420,8 @@ def classify_image(
     # balance classes
     balanced_pixels, balanced_labels = balance_classes(labeled_pixels,
                                                        labels,
-                                                       num_samples=num_samples)
+                                                       num_samples=num_samples,
+                                                       random_state=random_state)
 
     # remove outliers
     balanced_pixels, balanced_labels = outlier_removal(balanced_pixels,
@@ -421,7 +429,9 @@ def classify_image(
                                                        contamination=contamination)
 
     # split data
-    X_train, X_test, y_train, y_test = split_data(balanced_pixels, balanced_labels)
+    X_train, X_test, y_train, y_test = split_data(balanced_pixels,
+                                                  balanced_labels,
+                                                  random_state=random_state)
 
     pls_da = plsda_model_builder(X_train, y_train, auto_optimize=auto_optimize,
                                  verbose=verbose,
