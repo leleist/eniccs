@@ -78,11 +78,11 @@ class Mask:
 
         def load_pattern(pattern):
             paths = []
-            for ext in ['TIF', 'tif', 'TIFF', 'tiff', 'BSQ', 'bsq']:
+            for ext in ['TIF', 'tif', 'TIFF', 'tiff']:
                 paths.extend(glob.glob(f"{self.dir_path}/*{pattern}.{ext}"))
             if not paths:
                 raise FileNotFoundError(
-                    f"Required mask file not found: *{pattern}.[TIF|tif|TIFF|tiff|BSQ|bsq] in"
+                    f"Required mask file not found: *{pattern}.[TIF|tif|TIFF|tiff] in"
                     f" {self.dir_path}")
 
             with rasterio.open(paths[0]) as src:
@@ -421,7 +421,8 @@ class Mask:
         else:
             raster_to_save = raster
 
-        with rasterio.open(output_path, 'w', driver=self.profile['driver'],
+        with rasterio.open(output_path, 'w', driver='GTiff', # hardcoded to be seamless with
+                           # qgis/enmapbox
                            height=self.mask_data[1].shape[1],
                            width=self.mask_data[1].shape[2],
                            count=1,
