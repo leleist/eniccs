@@ -7,6 +7,7 @@ and prediction for multiclass classification of hyperspectral images.
 """
 
 import numpy as np
+import joblib
 from scipy.optimize import curve_fit
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -297,15 +298,20 @@ def cv_optimize_n_components(X_train, y_train, max_components,
     n_components_list = list(range(2, max_components))
 
     f1_scores = []
-    for i in n_components_list:
-        pls_da = multiclass_plsda(X_train, y_train, i)  # make the model object
-        scores = cross_val_score(pls_da, X_train, y_train,
-                                 cv=cv,
-                                 scoring=f1_weighted_scorer,
-                                 verbose=0,
-                                 n_jobs=njobs)
+    # Uses the threading backend so this works in embedded contexts (QGIS),
+    # where the default loky/subprocess backend may fail to spawn workers.
+    # numpy/sklearn release the GIL (Global interpreter lock) during CV, so parallelization is
+    # still effective even without subprocess workers.
+    with joblib.parallel_backend('threading'):
+        for i in n_components_list:
+            pls_da = multiclass_plsda(X_train, y_train, i)  # make the model object
+            scores = cross_val_score(pls_da, X_train, y_train,
+                                     cv=cv,
+                                     scoring=f1_weighted_scorer,
+                                     verbose=0,
+                                     n_jobs=njobs)
 
-        f1_scores.append(scores.mean())
+            f1_scores.append(scores.mean())
 
 
     optimal_n_components, _ = find_optimal_ncomp_via_saturation_point(
