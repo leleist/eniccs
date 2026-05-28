@@ -416,7 +416,7 @@ class Mask:
         output_path = output_dir + '/' + filename_prefix + '.tif'
 
         if len(raster.shape) != 2:
-            # remove arbitratry third dim
+            # remove arbitrary third dim
             raster_to_save = np.squeeze(raster.copy())
         else:
             raster_to_save = raster
