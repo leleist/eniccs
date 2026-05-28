@@ -198,7 +198,8 @@ def run_eniccs(
         num_samples: int = 3000,
         buffer_size: int = 1,
         n_jobs: int = -1,
-        random_state: int = 42
+        random_state: int = 42,
+        output_dir: str = None,
 ):
     """
     Main wrapper for the EnICCS pipeline for improving EnMAP's operational
@@ -250,6 +251,9 @@ def run_eniccs(
         Number of parallel jobs to run. -1 --> all processors.
     random_state: int, default=42
         Random state for reproducibility of results.
+     output_dir : str, optional
+        Directory to write the output masks into. If None (default), masks are written
+        next to the input rasters in `dir_path`.
 
     Returns
     -------
@@ -301,11 +305,13 @@ def run_eniccs(
 
         mask_obj.save_mask_to_geotiff(
             mask_obj.new_cloud_mask,
-            filename_prefix=filename_cloud
+            filename_prefix=filename_cloud,
+            output_dir=output_dir
         )
         mask_obj.save_mask_to_geotiff(
             mask_obj.new_cloudshadow_mask,
-            filename_prefix=filename_cloudshadow
+            filename_prefix=filename_cloudshadow,
+            output_dir = output_dir,
         )
 
     return mask_obj if return_mask_obj else None
