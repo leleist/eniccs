@@ -76,11 +76,11 @@ run_eniccs(dir_path)
 
 # new cloud and cloudshadow masks will be saved to "dir_path"
 ```
-**Please note:** EnICCS currently accepts two file types, TIFF and BSQ, with common extensions (.TIFF, .TIF, .tiff, .tif, .BSQ, .bsq)  
+**Please note:** EnICCS currently accepts two file types, TIFF and BSQ, with extensions (.TIFF, .TIF, .tiff, .tif, .BSQ, .bsq)  
 <br>
 
 ## Note on Transferability:
-EnICCS was developed and tested on EnMAP scenes over smallholder areas of tropical western Kenya.
+EnICCS was developed and tested on EnMAP scenes over tropical western Kenya.
 Application to regions with differing surface characteristics may require adjustments. 
 The code structure allows for some optimization with available parameters and simple adaptation, leveraging expert 
 knowledge and/or visual inspection. For more details see the accompanying [paper](https://www.sciencedirect.com/science/article/pii/S1569843225005618) and [Customization](#customization).  
@@ -129,7 +129,8 @@ Specifically regarding band indices and thresholds for different surface types (
 <br>
 
 ## Planned Features
- - "no reference data" mode for using EnICCS as a standalone cloud masking tool, without existing operational masks.  
+ - "no reference data" mode for using EnICCS as a standalone cloud masking tool, without existing operational masks.
+ - Selectable surface-type presets (e.g., tropical, desert, snow, urban) with band indices and thresholds for mask refinement.
 <br>
 
 
