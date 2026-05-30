@@ -105,7 +105,8 @@ run_eniccs(
      num_samples: int = 3000,           # number of samples for PLS-DA training
      buffer_size: int = 1,              # Buffer size for dilation of CCS mask outputs.
      n_jobs: int = -1,                  # number of parallel jobs (CPU)
-     random_state: int = 42             # random state for class balancing and data splitting
+     random_state: int = 42,            # random state for class balancing and data splitting
+     output_dir: str = None,            # alterbative output directory for saving the new masks (if None, saves to dir_path)
 )
 ```  
 <br>
@@ -115,6 +116,7 @@ The main module contains functions for mask refinement i.e. `improve_cloud_mask_
 `improve_cloud_shadow_mask` as well as a wrapper `refine_ccs_masks` that integrates the two prior functions into the 
 overall workflow.
 These functions can be modified. Here, bands, indices and thresholds can be changed to suit the surfaces of interest.
+Classification and post-processing steps can stay untouched in this scenario.
 
 In the context of supervised ML classification, we recall the garbage-in-garbage-out principle.
 Thus, the quality of the refined masks used for training is crucial for the performance of the PLS-DA model, 
