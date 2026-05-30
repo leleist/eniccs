@@ -109,7 +109,6 @@ def balance_classes(labeled_pixels, labels, num_samples, random_state=None):
     balanced_pixels = np.zeros((min_class_size * len(unique), labeled_pixels.shape[1]))
     balanced_labels = np.zeros(min_class_size * len(unique), dtype=int)
     rng = np.random.default_rng(random_state)
-    print(rng)
     for i, label in enumerate(unique):
         class_samples = labeled_pixels[labels == label, :]
         random_indices = rng.choice(class_samples.shape[0], min_class_size, replace=False)
