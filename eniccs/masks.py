@@ -5,6 +5,7 @@ postprocessing of predicted masks.
 """
 
 import glob
+import inspect
 import os
 import rasterio
 import numpy as np
@@ -13,6 +14,13 @@ from scipy.ndimage import binary_dilation, binary_opening, binary_closing, binar
 from scipy.spatial import cKDTree
 from skimage.measure import label, regionprops
 from skimage.morphology import remove_small_holes
+
+# scikit-image 0.26.0 renamed `area_threshold` -> `max_size` on remove_small_holes. catching that to
+# preempt depreciation warnings and ensure compatibility with both versions.
+_HOLES_KWARG = (
+    'max_size' if 'max_size' in inspect.signature(remove_small_holes).parameters
+    else 'area_threshold'
+)
 
 
 class Mask:
@@ -208,7 +216,7 @@ class Mask:
         binary_mask = np.squeeze(binary_mask)
 
         # close small holes
-        binary_mask = remove_small_holes(binary_mask.astype(bool), area_threshold=600, connectivity=1)
+        binary_mask = remove_small_holes(binary_mask.astype(bool),  **{_HOLES_KWARG: 600}, connectivity=1)
 
         # remove noise
         if neutral_smooth:
@@ -243,7 +251,8 @@ class Mask:
         cloudshadow_mask = self.predicted_mask
         cloudshadow_mask = np.where(cloudshadow_mask == 3, 1, 0)
         cloudshadow_mask = cloudshadow_mask > 0
-        cloudshadow_mask = remove_small_holes(cloudshadow_mask, area_threshold=400, connectivity=1)
+        cloudshadow_mask = remove_small_holes(cloudshadow_mask,  **{_HOLES_KWARG: 400},
+                                              connectivity=1)
 
         self.new_cloudshadow_mask = cloudshadow_mask.astype(np.uint8)
 
