@@ -2,12 +2,12 @@ from setuptools import setup, find_packages
 
 setup(
     name='eniccs',
-    version='0.2.1',
+    version='0.2.2',
     packages=find_packages(),
     install_requires=[
               'scikit-learn>=1.4',
-              'rasterio>=1.4',
-              'numpy>=1.26',
+              'rasterio>=1.4,<1.5'
+              'numpy>=1.26,<2',
               'pandas>=2.0',
               'matplotlib>=3.8',
               'scipy>=1.13',
