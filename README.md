@@ -56,8 +56,10 @@ Some exemplary pairs of EnMAP images with operational (left) and EnICCS masks (r
 
 ## Installation
 
-You can install **EnICCS** from GitHub using pip:
+You can install **EnICCS** from GitHub or using pip:
 ```bash
+pip install eniccs
+# or
 pip install git+https://github.com/leleist/eniccs.git
 ```  
 <br>
